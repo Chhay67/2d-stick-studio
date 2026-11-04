@@ -1,0 +1,139 @@
+{
+  "version": "2.0",
+  "description": "Reusable floating in-world infographic & dialogue UI elements (Layer 3 — EXPLANATION). Never use heavy bounding box cards when floating elements communicate cleaner.",
+  "elements": [
+    {
+      "id": "elem:calendar_badge",
+      "name": "Calendar Icon Badge (ថ្ងៃទី 30)",
+      "cssClass": ".ref-calendar-badge",
+      "referenceSource": "Ref Images 3, 4, 5",
+      "editableFields": ["headerLabel (ថ្ងៃទី)", "dayNumber (30)"]
+    },
+    {
+      "id": "elem:mint_salary_envelope",
+      "name": "Mint-Green Salary Envelope (ប្រាក់ខែ / $300)",
+      "cssClass": ".ref-envelope-block",
+      "referenceSource": "Ref Images 4, 5",
+      "editableFields": ["title (ប្រាក់ខែ)", "amount ($300)"]
+    },
+    {
+      "id": "elem:segmented_salary_bar",
+      "name": "Horizontal Segmented Expense vs Savings Bar",
+      "cssClass": ".ref-salary-bar-group",
+      "referenceSource": "Ref Images 4, 5",
+      "editableFields": ["leftTitle (ប្រាក់ខែ)", "rightAmount ($300)", "slatePct (81%)", "greenPct (19%)"]
+    },
+    {
+      "id": "elem:pawn_ltv_hatch_bar",
+      "name": "Loan-to-Value Bar with Diagonal Coral Hatch (គ្រឿងអលង្ការ ≈ 70-85%)",
+      "cssClass": ".ref-bar-segment.coral-hatch",
+      "referenceSource": "Ref Image 2",
+      "editableFields": ["headline (គ្រឿងអលង្ការ ≈ 70-85%)", "topRightValue (តម្លៃ $966)", "bottomLeftValue (ខ្ចីបាន $650)"]
+    },
+    {
+      "id": "elem:circular_expense_icons",
+      "name": "Circular Essential Expense Icons (Food Plate, House, Blue Scooter)",
+      "cssClass": ".ref-expense-icons-row",
+      "referenceSource": "Ref Images 4, 5",
+      "editableFields": ["groupLabel (ចំណាយចាំបាច់)"]
+    },
+    {
+      "id": "elem:coral_alert_pill_coins",
+      "name": "Coral Warning Pill (នៅសល់តិច) + Green Coin Stack",
+      "cssClass": ".ref-leftover-group",
+      "referenceSource": "Ref Image 4",
+      "editableFields": ["pillText (នៅសល់តិច)"]
+    },
+    {
+      "id": "elem:speech_bubble_yellow_tag",
+      "name": "Story Speech Bubble with Overlapping Gold Speaker Tag (ចរណា / គន្ធា)",
+      "cssClass": ".ref-speech-bubble + .ref-speaker-tag",
+      "referenceSource": "Ref Image 1",
+      "editableFields": ["speakerName", "dialogueKhmer"]
+    },
+    {
+      "id": "elem:chapter_tracker_top_left",
+      "name": "Top-Left Chapter Progress Tracker + Yellow Ribbon (2. បើកហាង)",
+      "cssClass": ".ref-chapter-tracker",
+      "referenceSource": "Ref Image 2",
+      "editableFields": ["completedDays", "chapterTitle"]
+    },
+    {
+      "id": "elem:subtitle_pill_bottom",
+      "name": "Bottom Safe-Zone Dark Charcoal Khmer Subtitle Pill (1–2 lines)",
+      "cssClass": ".stage-caption-bar",
+      "referenceSource": "Ref Images 3, 5",
+      "editableFields": ["captionKhmer"]
+    },
+    {
+      "id": "elem:sugar_comparison_bars",
+      "name": "WHO Safe Sugar Limit (≤25g) vs 1 Iced Sweet Coffee (45g / 180% Coral Hatch) Bars",
+      "cssClass": ".ref-salary-bar-group + .ref-bar-segment.coral-hatch",
+      "referenceSource": "EP01 Healthy Living (ep01-iced-coffee)",
+      "editableFields": ["safeTitle (កម្រិតសុវត្ថិភាព ≤ 25g)", "coffeeTitle (កាហ្វេទឹកកក 1 កែវ = 45g)", "overloadPill (លើស 180%)"]
+    },
+    {
+      "id": "elem:glucose_rollercoaster_curve",
+      "name": "120-Minute Blood Sugar Spike (#FA604E) & Insulin Crash (#5D98E8) Floating Graph",
+      "cssClass": ".ep01-glucose-curve",
+      "referenceSource": "EP01 Healthy Living (ep01-iced-coffee)",
+      "editableFields": ["peakLabel (នាទីទី 30: ស្ទុះឡើងខ្ពស់)", "insulinLabel (អាំងស៊ុយលីន)", "crashLabel (នាទីទី 120: ធ្លាក់ចុះខ្លាំង)"]
+    },
+    {
+      "id": "elem:caffeine_halflife_clock",
+      "name": "6-Hour Caffeine Half-Life & Deep Sleep Disruption Badge (50% Active at 8:00 PM)",
+      "cssClass": ".ep01-caffeine-clock",
+      "referenceSource": "EP01 Healthy Living (ep01-iced-coffee)",
+      "editableFields": ["drinkTime (ផឹកម៉ោង 2:00 រសៀល)", "nightTime (ម៉ោង 8:00 យប់ សល់ 50%)", "sleepWarning (រំខានដំណេកជ្រៅ)"]
+    },
+    {
+      "id": "elem:sweetness_stepdown_pills",
+      "name": "3-Step Smart Coffee Lover Formula Badges (25% Sweet / Before 12PM / 1:1 Water)",
+      "cssClass": ".ep01-stepdown-pills",
+      "referenceSource": "EP01 Healthy Living (ep01-iced-coffee)",
+      "editableFields": ["step1", "step2", "step3"]
+    },
+    {
+      "id": "elem:km_key_tracker",
+      "name": "Top-Left Key/Icon Progress Tracker (🔑 1..7 + Yellow Active Chapter Pill)",
+      "cssClass": ".km-key-tracker + .km-key-row + .km-key-pill",
+      "referenceSource": "Kit Merl (គិតមើល) Signature Template",
+      "editableFields": ["activeKeyIndex", "chapterPillText"]
+    },
+    {
+      "id": "elem:km_dot_pill",
+      "name": "Status-Dot Pill Badge (• Gold / • Green / • Coral / • Blue)",
+      "cssClass": ".km-dot-pill + .km-dot",
+      "referenceSource": "Kit Merl (គិតមើល) Signature Template",
+      "editableFields": ["dotColor", "pillText"]
+    },
+    {
+      "id": "elem:km_clipped_card",
+      "name": "White Paper Note Card with Signature Yellow Top-Left Clip",
+      "cssClass": ".km-clipped-card",
+      "referenceSource": "Kit Merl (គិតមើល) Signature Template",
+      "editableFields": ["cardTitle", "cardBody"]
+    },
+    {
+      "id": "elem:km_counter_card",
+      "name": "Tinted-Header Rolling Number Counter Card (• ជាតិស្ករ / • ការប្រាក់)",
+      "cssClass": ".km-counter-card + .km-counter-header + .km-counter-value",
+      "referenceSource": "Kit Merl (គិតមើល) Signature Template",
+      "editableFields": ["headerPillText", "counterValue"]
+    },
+    {
+      "id": "elem:km_stamp_badge",
+      "name": "Tilted Rubber Stamp Slam Badge (លើសកម្រិត 180%! / កាត់ស្ករ 80%!)",
+      "cssClass": ".km-stamp-badge",
+      "referenceSource": "Kit Merl (គិតមើល) Signature Template",
+      "editableFields": ["stampText"]
+    },
+    {
+      "id": "elem:km_checklist_card",
+      "name": "Dim-to-Bold Progressive Checklist Rows (data-check-at='seconds')",
+      "cssClass": ".km-check-row + .km-check-box",
+      "referenceSource": "Kit Merl (គិតមើល) Signature Template",
+      "editableFields": ["checkAtSeconds", "ruleText"]
+    }
+  ]
+}

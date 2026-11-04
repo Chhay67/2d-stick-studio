@@ -1,0 +1,62 @@
+{
+  "version": "2.0",
+  "description": "Reusable #171717-outlined foreground & mid-ground 2D vector props (Master Design System v2.0).",
+  "props": [
+    {
+      "id": "prop:office_desk_laptop",
+      "name": "Minimalist Office Desk & Colored-Code Laptop",
+      "engineFn": "CharacterRig.renderOfficeDeskLaptopSVG(x, groundY)",
+      "referenceSource": "Ref Images 3, 4, 5 (ហេង $300 Office)",
+      "colors": ["#E6E9EF", "#FFFFFF", "#1E2638", "#2FAA61", "#5D98E8", "#EABF42"]
+    },
+    {
+      "id": "prop:pawn_counter_wood",
+      "name": "Wooden Shop Counter with Glass Ledge",
+      "engineFn": "CharacterRig.renderPawnCounterForegroundSVG(false)",
+      "referenceSource": "Ref Images 1, 2 (ហាងបញ្ចាំ)",
+      "colors": ["#8C6239", "#734F2C", "#CBD5E1", "#171717"]
+    },
+    {
+      "id": "prop:digital_gold_scale",
+      "name": "Digital Gold Scale ($966 / តម្លៃមាស) + Gold Necklace",
+      "engineFn": "CharacterRig.renderPawnCounterForegroundSVG(true, scaleValText)",
+      "referenceSource": "Ref Image 2 (តម្លៃមាស $966)",
+      "colors": ["#CBD5E1", "#1E293B", "#4ADE80", "#EABF42", "#FA604E", "#2FAA61"]
+    },
+    {
+      "id": "prop:safe_box",
+      "name": "Dark Slate Metal Safe Box with Dial",
+      "engineFn": "Included in CharacterRig.renderPawnShopEnvironmentSVG",
+      "referenceSource": "Ref Images 1, 2",
+      "colors": ["#5D6472", "#687080", "#CBD5E1"]
+    },
+    {
+      "id": "prop:tagged_display_shelf",
+      "name": "Two-Tier Shelf with Yellow-Tagged Pawn Items (Tablet, Bowl, 3 Phones)",
+      "engineFn": "Included in CharacterRig.renderPawnShopEnvironmentSVG",
+      "referenceSource": "Ref Images 1, 2",
+      "colors": ["#7C5836", "#475569", "#FEF08A"]
+    },
+    {
+      "id": "prop:smartphone_hand",
+      "name": "Handheld Smartphone Prop",
+      "engineFn": "CharacterRig.renderActorSVG({ gesture: 'hold-phone' })",
+      "referenceSource": "Master Design System v2.0 Motion Vocabulary",
+      "colors": ["#1E293B", "#171717"]
+    },
+    {
+      "id": "prop:iced_coffee_cup_hand",
+      "name": "Handheld Iced Sweet Coffee Cup (Plastic Dome Lid + Condensed Milk Layer + Straw)",
+      "engineFn": "CharacterRig.renderActorSVG({ gesture: 'hold-coffee' })",
+      "referenceSource": "EP01 Healthy Living (ep01-iced-coffee)",
+      "colors": ["#2FAA61", "#F8FAFC", "#7C4D2B", "#FEF3C7", "#171717"]
+    },
+    {
+      "id": "prop:giant_iced_coffee_xray",
+      "name": "Giant 650ml Iced Sweet Coffee Cross-Section X-Ray (45g / 11 Teaspoons Sugar Layer)",
+      "engineFn": "CharacterRig.renderIcedCoffeeXrayPropSVG(x, groundY)",
+      "referenceSource": "EP01 Healthy Living (ep01-iced-coffee)",
+      "colors": ["#7C4D2B", "#FA604E", "#FEF08A", "#2FAA61", "#FFFFFF", "#171717"]
+    }
+  ]
+}

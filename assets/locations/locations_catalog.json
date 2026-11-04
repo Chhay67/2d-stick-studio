@@ -1,0 +1,18 @@
+{
+  "version": "2.0",
+  "description": "12 Reusable Minimalist 2D Locations (Layer 2 — ENVIRONMENT) rendered via CharacterRig.renderLocationSVG(locationId, options).",
+  "locations": [
+    { "id": "office", "name": "Office (Desk + Colored-Code Laptop on Clean Canvas)", "pillarFit": ["Finance", "Motivation", "Education"] },
+    { "id": "shop", "name": "Shop / Pawn Counter (Architectural Linework Wall + Counter, Safe, Shelf)", "pillarFit": ["Finance"] },
+    { "id": "classroom", "name": "Classroom (Whiteboard + Student Desk)", "pillarFit": ["Education", "Motivation"] },
+    { "id": "home", "name": "Home Interior / Entry", "pillarFit": ["Finance", "Healthy Living", "Motivation"] },
+    { "id": "bedroom", "name": "Bedroom (Bed Silhouette + Wall Clock)", "pillarFit": ["Motivation", "Healthy Living", "Education"] },
+    { "id": "living-room", "name": "Living Room (Sofa Silhouette + Window Frame)", "pillarFit": ["Finance", "Motivation"] },
+    { "id": "kitchen", "name": "Kitchen Countertop", "pillarFit": ["Healthy Living"] },
+    { "id": "dining-room", "name": "Dining Room Table with Healthy Bowl", "pillarFit": ["Healthy Living", "Finance"] },
+    { "id": "park", "name": "Park (Minimalist Tree + Park Bench)", "pillarFit": ["Healthy Living", "Motivation"] },
+    { "id": "street", "name": "Street / Sidewalk Horizon", "pillarFit": ["Finance", "Motivation"] },
+    { "id": "gym", "name": "Gym (Exercise Mat + Dumbbell Silhouette)", "pillarFit": ["Healthy Living"] },
+    { "id": "whiteboard", "name": "Abstract Whiteboard / Pure Explainer Space", "pillarFit": ["All Pillars — EXPLAINER Mode"] }
+  ]
+}

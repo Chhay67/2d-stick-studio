@@ -1,0 +1,59 @@
+{
+  "version": "2.0",
+  "description": "Global reusable understated sound effects (SFX) for Khmer 2D Educational Animations. 100% mathematically synthesized via WebAudio / Node PCM (Zero external copyrighted samples — 100% Commercial & Monetization Safe for YouTube, Facebook, and TikTok).",
+  "licensePolicy": {
+    "studioSynthesized": "CC0 1.0 Public Domain / Original Procedural Synthesis (100% Commercial & Monetization Safe, No Attribution Required)",
+    "approvedExternalSources": [
+      "YouTube Studio Audio Library (Sound Effects — Commercial Safe)",
+      "Freesound.org (Strictly filtered to CC0 1.0 Public Domain only)",
+      "Kenney.nl Digital Audio Assets (CC0 1.0 Public Domain)"
+    ]
+  },
+  "sfx": [
+    {
+      "id": "sfx:whoosh_paper",
+      "file": "assets/audio/sfx/whoosh_paper.wav",
+      "webAudioFn": "playSfxWhoosh",
+      "durationMs": 360,
+      "source": "Original Procedural Bandpass White-Noise Synthesis (scene-player.js)",
+      "license": "CC0 / 100% Commercial Safe (Self-Synthesized)",
+      "triggerUse": "Floating infographic entrance, camera framing shift, or scene mode transition"
+    },
+    {
+      "id": "sfx:counter_ticks",
+      "file": "assets/audio/sfx/counter_ticks.wav",
+      "webAudioFn": "playSfxCounterTicks",
+      "durationMs": 850,
+      "source": "Original Procedural Triangle-Wave Pitch Ramp Synthesis (520Hz–925Hz)",
+      "license": "CC0 / 100% Commercial Safe (Self-Synthesized)",
+      "triggerUse": "Number roll-up ($300, $966, 45g, 70-85%) or segmented progress bar fill"
+    },
+    {
+      "id": "sfx:chime_highlight",
+      "file": "assets/audio/sfx/chime_highlight.wav",
+      "webAudioFn": "playSfxChime",
+      "durationMs": 560,
+      "source": "Original Procedural Dual-Sine Harmonic Synthesis (D5 587.33Hz + A5 880Hz)",
+      "license": "CC0 / 100% Commercial Safe (Self-Synthesized)",
+      "triggerUse": "Positive takeaway, green (#2FAA61) savings/health badge, or gold (#EABF42) key insight"
+    },
+    {
+      "id": "sfx:pop_soft",
+      "file": "assets/audio/sfx/pop_soft.wav",
+      "webAudioFn": "playSfxPopSoft",
+      "durationMs": 110,
+      "source": "Original Procedural Sine Pitch-Drop Bubble Synthesis (320Hz -> 680Hz)",
+      "license": "CC0 / 100% Commercial Safe (Self-Synthesized)",
+      "triggerUse": "Calendar badge (ថ្ងៃទី 30), circular icon, or speech bubble appearance"
+    },
+    {
+      "id": "sfx:alert_coral",
+      "file": "assets/audio/sfx/alert_coral.wav",
+      "webAudioFn": "playSfxAlertCoral",
+      "durationMs": 340,
+      "source": "Original Procedural Two-Tone Warning Synthesis (440Hz -> 330Hz)",
+      "license": "CC0 / 100% Commercial Safe (Self-Synthesized)",
+      "triggerUse": "Coral (#FA604E) warning pill (នៅសល់តិច / លើស 180%), sugar crash, or mistake beat"
+    }
+  ]
+}
