@@ -222,7 +222,16 @@ window.ScenePlayer = (function () {
     externalAudioConnected: false,
     externalAnalyser: null,
     externalDataArray: null,
-    usingExternalAudio: false
+    usingExternalAudio: false,
+    voiceLoadRequestId: 0,
+    voiceLoading: false,
+    transitionTimerId: null,
+    transitionPending: false,
+    assetFilterCategory: 'all',
+    assetSearchQuery: '',
+    inspectedAssetId: null,
+    inspectedCharEmotion: 'happy',
+    inspectedCharGesture: 'hold-coffee'
   };
 
   function getActiveShots() {
@@ -245,6 +254,8 @@ window.ScenePlayer = (function () {
     container.querySelectorAll('.shot-tab-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
         const idx = parseInt(btn.getAttribute('data-shot-idx'), 10);
+        state.autoAdvanceEpisode = false;
+        if (state.shotPlaying) stopShotPlayback();
         loadShot(idx, true);
       });
     });
@@ -568,13 +579,13 @@ window.ScenePlayer = (function () {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = 'sine';
-      osc.frequency.setValueAtTime(freq, now + idx * 0.065);
-      gain.gain.setValueAtTime(0.065, now + idx * 0.065);
-      gain.gain.exponentialRampToValueAtTime(0.0008, now + idx * 0.065 + 0.34);
+      osc.frequency.setValueAtTime(freq, now + 0.08 + idx * 0.12);
+      gain.gain.setValueAtTime(0.065, now + 0.08 + idx * 0.12);
+      gain.gain.exponentialRampToValueAtTime(0.0008, now + 0.08 + idx * 0.12 + 0.56);
       osc.connect(gain);
       gain.connect(ctx.destination);
-      osc.start(now + idx * 0.065);
-      osc.stop(now + idx * 0.065 + 0.36);
+      osc.start(now + 0.08 + idx * 0.12);
+      osc.stop(now + 0.08 + idx * 0.12 + 0.58);
     });
   }
 
@@ -1079,8 +1090,16 @@ window.ScenePlayer = (function () {
   }
 
   function loadShot(index, triggerAudio = true) {
+    state.inspectedAssetId = null;
+    const bannerEl = document.getElementById('inspectedAssetBanner');
+    if (bannerEl) bannerEl.classList.add('hidden');
+    document.querySelectorAll('.asset-card.active').forEach((c) => c.classList.remove('active'));
     if (!state.autoAdvanceEpisode && state.shotPlaying) {
       stopShotPlayback();
+    } else if (state.autoAdvanceEpisode) {
+      state.shotPlaying = false;
+      state.shotElapsed = 0;
+      stopCurrentAudioElement();
     }
     const shots = getActiveShots();
     state.currentShotIndex = Math.max(0, Math.min(index, shots.length - 1));
@@ -1102,13 +1121,17 @@ window.ScenePlayer = (function () {
     if (infoContainer) {
       infoContainer.innerHTML = renderInfographicHTML(shot);
       applyResponsiveInfographicLayout();
-      requestAnimationFrame(() => {
-        setTimeout(() => {
-          infoContainer.querySelectorAll('.ref-bar-segment').forEach((seg) => {
-            seg.style.width = seg.getAttribute('data-target-width');
-          });
-        }, 50);
-      });
+      if (state.autoAdvanceEpisode) {
+        applyInfographicTimelineState(0, true);
+      } else {
+        requestAnimationFrame(() => {
+          setTimeout(() => {
+            infoContainer.querySelectorAll('.ref-bar-segment').forEach((seg) => {
+              seg.style.width = seg.getAttribute('data-target-width');
+            });
+          }, 50);
+        });
+      }
     }
 
     const captionEl = document.getElementById('stageCaptionText');
@@ -1128,6 +1151,7 @@ window.ScenePlayer = (function () {
           : 'Character Sheet';
     }
 
+    renderActiveShotInspector(shot);
     applyCameraFraming();
     triggerSceneTransition(shot, triggerAudio);
     tryAutoLoadShotVoice(shot, state.autoAdvanceEpisode);
@@ -1384,21 +1408,94 @@ window.ScenePlayer = (function () {
     }
   }
 
+  function clearTransitionTimer() {
+    if (state.transitionTimerId) {
+      clearTimeout(state.transitionTimerId);
+      state.transitionTimerId = null;
+    }
+    state.transitionPending = false;
+  }
+
+  function stopCurrentAudioElement() {
+    if (state.externalAudio) {
+      try {
+        state.externalAudio.onended = null;
+        state.externalAudio.onloadedmetadata = null;
+        state.externalAudio.pause();
+        state.externalAudio.currentTime = 0;
+      } catch (_) {}
+    }
+  }
+
+  function scheduleAutoPlayAfterTransition(reqId) {
+    clearTransitionTimer();
+    const delayMs = state.currentShotIndex > 0 ? 640 : 260;
+    state.transitionPending = true;
+    updatePlaybackButtonsUI();
+    state.transitionTimerId = setTimeout(() => {
+      state.transitionTimerId = null;
+      state.transitionPending = false;
+      if (reqId === state.voiceLoadRequestId && state.autoAdvanceEpisode) {
+        startShotPlayback();
+      }
+    }, delayMs);
+  }
+
+  function updatePlaybackButtonsUI() {
+    const isSingleShotPlaying = state.shotPlaying && !state.autoAdvanceEpisode;
+    const isFullEpisodePlaying =
+      (state.shotPlaying || state.voiceLoading || state.transitionPending) && state.autoAdvanceEpisode;
+
+    const btnShot = document.getElementById('btnPlayShot8s');
+    if (btnShot) {
+      if (isSingleShotPlaying) {
+        btnShot.textContent = '⏹ Stop Shot';
+        btnShot.style.background = '#FA604E';
+        btnShot.style.borderColor = '#FA604E';
+      } else {
+        btnShot.textContent = '▶ Play Shot + Voice';
+        btnShot.style.background = '#2FAA61';
+        btnShot.style.borderColor = '#2FAA61';
+      }
+    }
+
+    const btnEp = document.getElementById('btnPlayEpisodeAll');
+    if (btnEp) {
+      btnEp.textContent = isFullEpisodePlaying ? '⏹ Stop Full Episode' : '🎬 Play Full Episode';
+      btnEp.style.background = isFullEpisodePlaying ? '#FA604E' : '';
+      btnEp.style.borderColor = isFullEpisodePlaying ? '#FA604E' : '#5D98E8';
+      btnEp.style.color = isFullEpisodePlaying ? '#FFFFFF' : '#93C5FD';
+    }
+
+    const btnHudEp = document.getElementById('btnHudPlayEpisode');
+    if (btnHudEp) {
+      btnHudEp.textContent = isFullEpisodePlaying ? '⏹ Stop Full Episode' : '🎬 Play Full Episode';
+      btnHudEp.style.background = isFullEpisodePlaying ? '#FA604E' : '#2FAA61';
+      btnHudEp.style.borderColor = isFullEpisodePlaying ? '#FA604E' : '#2FAA61';
+    }
+  }
+
   async function tryAutoLoadShotVoice(shot, autoPlayAfterLoad = false) {
+    const reqId = ++state.voiceLoadRequestId;
     const label = document.getElementById('voiceFileLabel');
     const readoutEl = document.getElementById('timelineReadout');
-    if (state.externalAudio) {
-      state.externalAudio.pause();
-    }
+
+    stopCurrentAudioElement();
+    state.externalAudio = null;
+    state.usingExternalAudio = false;
+    state.voiceLoading = true;
+
     state.shotDuration = shot?.defaultDuration || 8.0;
     if (readoutEl) readoutEl.textContent = `0.0s / ${state.shotDuration.toFixed(1)}s`;
     renderScrubberMarkers(shot, state.shotDuration);
 
     if (!shot || !shot.voiceBase) {
-      state.usingExternalAudio = false;
-      state.externalAudio = null;
+      state.voiceLoading = false;
       if (label) {
         label.textContent = 'Load .WAV/.MP3 (Real RMS Lip-Sync)';
+      }
+      if (autoPlayAfterLoad || state.autoAdvanceEpisode) {
+        scheduleAutoPlayAfterTransition(reqId);
       }
       return;
     }
@@ -1407,12 +1504,15 @@ window.ScenePlayer = (function () {
       const candidateUrl = `${shot.voiceBase}${ext}`;
       try {
         const res = await fetch(candidateUrl, { method: 'HEAD', cache: 'no-store' });
+        if (reqId !== state.voiceLoadRequestId) return;
         if (res.ok) {
+          stopCurrentAudioElement();
           const audio = new Audio(candidateUrl);
           audio.crossOrigin = 'anonymous';
-          audio.preload = 'metadata';
+          audio.preload = 'auto';
 
-          audio.addEventListener('loadedmetadata', () => {
+          audio.onloadedmetadata = () => {
+            if (state.externalAudio !== audio) return;
             if (audio.duration && isFinite(audio.duration) && audio.duration > 0.5) {
               state.shotDuration = Number(audio.duration.toFixed(1));
               if (readoutEl && !state.shotPlaying) {
@@ -1420,34 +1520,41 @@ window.ScenePlayer = (function () {
               }
               renderScrubberMarkers(shot, state.shotDuration);
             }
-          });
+          };
 
-          audio.addEventListener('ended', () => {
+          audio.onended = () => {
+            if (state.externalAudio !== audio) return;
             if (state.shotPlaying) {
               handleShotPlaybackFinished();
             }
-          });
+          };
 
           state.externalAudio = audio;
           state.usingExternalAudio = true;
+          state.voiceLoading = false;
           const shortName = candidateUrl.split('/').pop();
           if (label) label.textContent = `🟢 Ready: ${shortName}`;
 
-          if (autoPlayAfterLoad) {
-            startShotPlayback();
+          if (autoPlayAfterLoad || state.autoAdvanceEpisode) {
+            scheduleAutoPlayAfterTransition(reqId);
           }
           return;
         }
       } catch (_) {
-        // Ignore when file does not exist yet
+        if (reqId !== state.voiceLoadRequestId) return;
       }
     }
 
+    if (reqId !== state.voiceLoadRequestId) return;
+    state.voiceLoading = false;
     state.usingExternalAudio = false;
     state.externalAudio = null;
     if (label) {
       const expectedName = `${shot.voiceBase.split('/').pop()}.wav`;
       label.textContent = `📂 Drop ${expectedName} in audio/voice/`;
+    }
+    if (autoPlayAfterLoad || state.autoAdvanceEpisode) {
+      scheduleAutoPlayAfterTransition(reqId);
     }
   }
 
@@ -1460,7 +1567,10 @@ window.ScenePlayer = (function () {
   // 5. AUDIO-DRIVEN SHOT PREVIEW TIMELINE, FULL-EPISODE AUTO-ADVANCE & SCRUBBER
   // =========================================================================
   function toggleShotPlayback() {
-    if (state.shotPlaying) {
+    if (state.inspectedAssetId) {
+      loadShot(state.currentShotIndex, false);
+    }
+    if (state.shotPlaying || state.autoAdvanceEpisode) {
       state.autoAdvanceEpisode = false;
       stopShotPlayback();
     } else {
@@ -1470,18 +1580,30 @@ window.ScenePlayer = (function () {
   }
 
   function toggleFullEpisodePlayback() {
-    if (state.shotPlaying && state.autoAdvanceEpisode) {
+    if (state.inspectedAssetId) {
+      loadShot(state.currentShotIndex, false);
+    }
+    if ((state.shotPlaying || state.voiceLoading || state.transitionPending) && state.autoAdvanceEpisode) {
       state.autoAdvanceEpisode = false;
       stopShotPlayback();
       return;
     }
+    // Always stop any active single-shot ("Play Shot + Voice") playback first to prevent audio conflict
+    if (state.shotPlaying) {
+      stopShotPlayback();
+    }
     state.autoAdvanceEpisode = true;
+    updatePlaybackButtonsUI();
+
     const shots = getActiveShots();
-    // If currently on the Character Sheet tab, start from Shot 01
-    if (shots[state.currentShotIndex]?.sceneType === 'character-sheet') {
-      loadShot(0, false);
-      setTimeout(() => startShotPlayback(), 180);
-    } else {
+    const isTheatre = document.body.classList.contains('theatre-capture-mode');
+    // If on the Character Sheet tab or starting Full Episode in Theatre Capture mode from another shot, load Shot 01
+    if (
+      shots[state.currentShotIndex]?.sceneType === 'character-sheet' ||
+      (isTheatre && state.currentShotIndex !== 0)
+    ) {
+      loadShot(0, true);
+    } else if (!state.voiceLoading) {
       startShotPlayback();
     }
   }
@@ -1492,6 +1614,8 @@ window.ScenePlayer = (function () {
       state.audioCtx.resume();
     }
 
+    stopCurrentAudioElement();
+
     state.shotPlaying = true;
     state.shotStartTime = performance.now();
     state.shotElapsed = 0;
@@ -1499,28 +1623,25 @@ window.ScenePlayer = (function () {
     state.triggeredCueIndices = new Set();
     state.lipSyncEnabled = true;
 
-    const btn = document.getElementById('btnPlayShot8s');
-    if (btn) {
-      btn.textContent = '⏹ Stop Shot';
-      btn.style.background = '#FA604E';
-      btn.style.borderColor = '#FA604E';
-    }
-    const btnEp = document.getElementById('btnPlayEpisodeAll');
-    if (btnEp) {
-      btnEp.textContent = state.autoAdvanceEpisode ? '⏹ Stop Full Episode' : '🎬 Play Full Episode';
-    }
+    updatePlaybackButtonsUI();
 
     // Initialize staged infographic elements and bars at t = 0.0s
     applyInfographicTimelineState(0, true);
     startBgmEngine();
 
     if (state.externalAudio) {
-      connectExternalAudioAnalyser(state.externalAudio);
-      if (state.externalAudio.duration && isFinite(state.externalAudio.duration)) {
-        state.shotDuration = Number(state.externalAudio.duration.toFixed(1));
+      const activeAudio = state.externalAudio;
+      connectExternalAudioAnalyser(activeAudio);
+      if (activeAudio.duration && isFinite(activeAudio.duration)) {
+        state.shotDuration = Number(activeAudio.duration.toFixed(1));
       }
-      state.externalAudio.currentTime = 0;
-      state.externalAudio.play().catch(() => {});
+      activeAudio.onended = () => {
+        if (state.externalAudio === activeAudio && state.shotPlaying) {
+          handleShotPlaybackFinished();
+        }
+      };
+      activeAudio.currentTime = 0;
+      activeAudio.play().catch(() => {});
     }
   }
 
@@ -1530,9 +1651,20 @@ window.ScenePlayer = (function () {
       const nextIdx = state.currentShotIndex + 1;
       // Advance across all story/explainer shots (stop before the Character Sheet tab)
       if (nextIdx < shots.length && shots[nextIdx].sceneType !== 'character-sheet') {
-        state.currentShotIndex = nextIdx;
-        renderShotTabs();
-        loadShot(nextIdx, true);
+        state.shotPlaying = false;
+        stopCurrentAudioElement();
+        clearTransitionTimer();
+        state.transitionPending = true;
+        updatePlaybackButtonsUI();
+        // Hold a 550ms natural breathing beat at the end of the current shot before wiping to the next scene
+        state.transitionTimerId = setTimeout(() => {
+          state.transitionTimerId = null;
+          if (!state.autoAdvanceEpisode) return;
+          state.shotElapsed = 0;
+          state.currentShotIndex = nextIdx;
+          renderShotTabs();
+          loadShot(nextIdx, true);
+        }, 550);
         return;
       }
     }
@@ -1541,22 +1673,14 @@ window.ScenePlayer = (function () {
   }
 
   function stopShotPlayback() {
+    clearTransitionTimer();
     state.shotPlaying = false;
+    state.autoAdvanceEpisode = false;
     stopBgmEngine();
+    stopCurrentAudioElement();
     state.scaleCounterText = '966';
-    const btn = document.getElementById('btnPlayShot8s');
-    if (btn) {
-      btn.textContent = '▶ Play Shot + Voice';
-      btn.style.background = '#2FAA61';
-      btn.style.borderColor = '#2FAA61';
-    }
-    const btnEp = document.getElementById('btnPlayEpisodeAll');
-    if (btnEp) {
-      btnEp.textContent = '🎬 Play Full Episode';
-    }
-    if (state.externalAudio) {
-      state.externalAudio.pause();
-    }
+    updatePlaybackButtonsUI();
+
     // Restore primary infographic cards to visible state when stopped, while hiding speech bubbles & B-roll
     applyInfographicTimelineState(999, false);
     const shot = getActiveShots()[state.currentShotIndex];
@@ -1578,6 +1702,8 @@ window.ScenePlayer = (function () {
     const readoutEl = document.getElementById('timelineReadout');
     if (fillEl) fillEl.style.width = `${pct}%`;
     if (readoutEl) readoutEl.textContent = `${elapsed.toFixed(1)}s / ${totalDur.toFixed(1)}s`;
+
+    highlightActiveCaptionBeat(shot, elapsed);
 
     // 1. Voice-Dependent Running Khmer Subtitle Captions (visible & running ONLY when voice plays)
     const isVoiceAudioActive =
@@ -1706,16 +1832,22 @@ window.ScenePlayer = (function () {
     // 1. Update Audio-Driven Shot Timeline if active
     if (state.shotPlaying) {
       const totalDur = Math.max(4.0, state.shotDuration || shot.defaultDuration || 8.0);
-      if (state.usingExternalAudio && state.externalAudio && !state.externalAudio.paused) {
-        state.shotElapsed = state.externalAudio.currentTime;
+      if (state.usingExternalAudio && state.externalAudio) {
+        state.shotElapsed = state.externalAudio.currentTime || 0;
+        if (state.externalAudio.ended) {
+          state.shotElapsed = totalDur;
+          handleShotPlaybackFinished();
+        } else {
+          updateShotTimelineEffects(state.shotElapsed);
+        }
       } else {
         state.shotElapsed = (now - state.shotStartTime) * 0.001;
-      }
-      if (state.shotElapsed >= totalDur && (!state.externalAudio || state.externalAudio.paused || state.externalAudio.ended)) {
-        state.shotElapsed = totalDur;
-        handleShotPlaybackFinished();
-      } else {
-        updateShotTimelineEffects(state.shotElapsed);
+        if (state.shotElapsed >= totalDur) {
+          state.shotElapsed = totalDur;
+          handleShotPlaybackFinished();
+        } else {
+          updateShotTimelineEffects(state.shotElapsed);
+        }
       }
     }
 
@@ -1749,8 +1881,10 @@ window.ScenePlayer = (function () {
     // 4. Render Characters & Synchronized Actor Beats
     const charSvgGroup = document.getElementById('characterSvgGroup');
     if (charSvgGroup) {
-      if (shot.sceneType === 'character-sheet') {
-        charSvgGroup.innerHTML = '';
+      if (shot.sceneType === 'character-sheet' || state.inspectedAssetId) {
+        if (shot.sceneType === 'character-sheet' && !state.inspectedAssetId) {
+          charSvgGroup.innerHTML = '';
+        }
         requestAnimationFrame(updateActorFrame);
         return;
       }
@@ -1814,7 +1948,7 @@ window.ScenePlayer = (function () {
         }
 
         const walkInProgress = state.shotPlaying
-          ? Math.max(0, Math.min(1, state.shotElapsed / 1.05))
+          ? Math.max(0, Math.min(1, state.shotElapsed / 1.38))
           : 1;
 
         const svgStr = window.CharacterRig.renderActorSVG({
@@ -1910,79 +2044,1063 @@ window.ScenePlayer = (function () {
     audio.play();
   }
 
-  function openExportModal() {
-    const headDiameter = state.headRadius * 2;
-    const totalHeight = headDiameter + state.torsoLength + state.limbLength;
-    const ratio = (totalHeight / headDiameter).toFixed(1);
+  // =========================================================================
+  // 7B. COMPLETE STUDIO ASSET LIBRARY (54 ELEMENTS, PROPS, ITEMS, CAST & LOCATIONS)
+  // =========================================================================
+  function getStudioAssetsCatalog() {
+    const R = window.CharacterRig;
+    return [
+      // -------------------- 1. FLOATING INFOGRAPHIC ELEMENTS (16) --------------------
+      {
+        id: 'elem:km_key_tracker',
+        category: 'elements',
+        nameKm: 'របារតាមដានជំពូក 🔑1..7',
+        nameEn: 'Top-Left Key Progress Tracker + Yellow Active Pill',
+        thumbHtml: `
+          <div style="transform:scale(0.72); transform-origin:center;">
+            <div class="km-key-tracker" style="position:static;">
+              <div class="km-key-row">
+                <div class="km-key-item done">✓</div>
+                <div class="km-key-item active">🔑2</div>
+                <div class="km-key-item">3</div>
+                <div class="km-key-item">4</div>
+              </div>
+              <div class="km-key-pill">2. ឆ្លុះមើលជាតិស្ករ 45g</div>
+            </div>
+          </div>`
+      },
+      {
+        id: 'elem:calendar_badge',
+        category: 'elements',
+        nameKm: 'ស្លាកប្រតិទិន និងម៉ោង (8:00 / ថ្ងៃទី 30)',
+        nameEn: 'Calendar & Morning Time Badge (.ref-calendar-badge)',
+        thumbHtml: `
+          <div style="display:flex; gap:14px; transform:scale(0.68); transform-origin:center;">
+            <div class="ref-calendar-badge">
+              <div class="ref-calendar-ring left"></div>
+              <div class="ref-calendar-ring right"></div>
+              <div class="ref-calendar-header" style="background:#5D98E8;">ម៉ោងព្រឹក</div>
+              <div class="ref-calendar-day" style="font-size:26px;">8:00</div>
+            </div>
+            <div class="ref-calendar-badge">
+              <div class="ref-calendar-ring left"></div>
+              <div class="ref-calendar-ring right"></div>
+              <div class="ref-calendar-header">ថ្ងៃទី</div>
+              <div class="ref-calendar-day">30</div>
+            </div>
+          </div>`
+      },
+      {
+        id: 'elem:km_clipped_card',
+        category: 'elements',
+        nameKm: 'កាតក្រដាសពណ៌សមានដង្កៀបលឿង',
+        nameEn: 'White Paper Card with Yellow Top-Left Clip (.km-clipped-card)',
+        thumbHtml: `
+          <div style="transform:scale(0.76); transform-origin:center;">
+            <div class="km-clipped-card tilted-right">
+              <div style="font-size:11.5px; color:#64748B; font-weight:700;">កាហ្វេទឹកកក 1 កែវធំ</div>
+              <div class="km-dot-pill" style="margin-top:4px; font-size:14px;">
+                <span class="km-dot gold"></span>650ml • $1.50
+              </div>
+            </div>
+          </div>`
+      },
+      {
+        id: 'elem:km_dot_pill',
+        category: 'elements',
+        nameKm: 'ស្លាកគ្រាប់ពណ៌សម្គាល់ស្ថានភាពទាំង 4',
+        nameEn: 'Status-Dot Pill Badges (Gold • Green • Coral • Blue)',
+        thumbHtml: `
+          <div style="display:flex; flex-wrap:wrap; gap:5px; justify-content:center; transform:scale(0.78);">
+            <span class="km-dot-pill"><span class="km-dot green"></span>⚡ ថាមពល 100%</span>
+            <span class="km-dot-pill"><span class="km-dot coral"></span>⚠️ អាស៊ីតក្រពះ ↑</span>
+            <span class="km-dot-pill"><span class="km-dot gold"></span>30 ថ្ងៃ = 1.35 kg</span>
+            <span class="km-dot-pill"><span class="km-dot blue"></span>💧 0g Fiber</span>
+          </div>`
+      },
+      {
+        id: 'elem:km_counter_card',
+        category: 'elements',
+        nameKm: 'កាតតួលេខរាប់ឡើងមានក្បាលពណ៌',
+        nameEn: 'Tinted-Header Rolling Counter Card (.km-counter-card)',
+        thumbHtml: `
+          <div style="display:flex; gap:8px; transform:scale(0.72); transform-origin:center;">
+            <div class="km-counter-card">
+              <div class="km-counter-header gold">• 30 ថ្ងៃ</div>
+              <div class="km-counter-value" style="font-size:16px;">ស្ករ 1.35 kg</div>
+            </div>
+            <div class="km-counter-card">
+              <div class="km-counter-header coral">• 365 ថ្ងៃ</div>
+              <div class="km-counter-value" style="font-size:16px; color:#FA604E;">ស្ករ 16.4 kg</div>
+            </div>
+          </div>`
+      },
+      {
+        id: 'elem:km_stamp_badge',
+        category: 'elements',
+        nameKm: 'ត្រាកៅស៊ូបោះសង្កត់ (Coral & Green)',
+        nameEn: 'Tilted Rubber Stamp Slam Badge (.km-stamp-badge)',
+        thumbHtml: `
+          <div style="display:flex; gap:10px; align-items:center; transform:scale(0.84);">
+            <span class="km-stamp-badge">លើសកម្រិត 180%!</span>
+            <span class="km-stamp-badge green">កាត់ស្ករ 80%!</span>
+          </div>`
+      },
+      {
+        id: 'elem:km_checklist_card',
+        category: 'elements',
+        nameKm: 'តារាងក្បួនអនុវត្តលោតសញ្ញា ✓',
+        nameEn: 'Dim-to-Bold Progressive Checklist Rows (.km-check-row)',
+        thumbHtml: `
+          <div style="display:flex; flex-direction:column; gap:4px; width:290px; transform:scale(0.74);">
+            <div class="km-check-row active-check" style="background:#E6F4EA; border-color:#2FAA61; padding:5px 9px;">
+              <div class="km-check-box">✓</div>
+              <div style="font-size:11.5px; font-weight:800; color:#1E7E45;">1. ប្តូរទឹកដោះគោស្រស់ ផ្អែម 25%</div>
+            </div>
+            <div class="km-check-row dimmed" style="padding:5px 9px;">
+              <div class="km-check-box"></div>
+              <div style="font-size:11.5px; font-weight:800;">2. ផឹកក្រោយអាហារពេលព្រឹក</div>
+            </div>
+          </div>`
+      },
+      {
+        id: 'elem:speech_bubble_yellow_tag',
+        category: 'elements',
+        nameKm: 'ប្រអប់សន្ទនាតួអង្គមានស្លាកឈ្មោះលឿង',
+        nameEn: 'Story Speech Bubble with Gold Speaker Tag (.ref-speech-bubble)',
+        thumbHtml: `
+          <div style="transform:scale(0.68); transform-origin:center;">
+            <div class="ref-speech-bubble" style="position:relative; width:270px; padding:8px 12px; font-size:12.5px;">
+              <div class="ref-speaker-tag">តារា</div>
+              <div>បឺតកាហ្វេទឹកកក 1 កែវភ្លាម ស្វាងភ្នែក 100%!</div>
+            </div>
+          </div>`
+      },
+      {
+        id: 'elem:mint_salary_envelope',
+        category: 'elements',
+        nameKm: 'ស្រោមសំបុត្រប្រាក់ខែពណ៌បៃតងខ្ចី ($300)',
+        nameEn: 'Mint-Green Salary Envelope (.ref-envelope-block)',
+        thumbHtml: `
+          <div style="transform:scale(0.72); transform-origin:center;">
+            <div class="ref-envelope-block">
+              <div class="ref-envelope-title" style="font-size:12px;">ប្រាក់ខែ</div>
+              <svg width="70" height="44" viewBox="0 0 82 52">
+                <rect x="2" y="2" width="78" height="48" rx="5" fill="#B7F0D0" stroke="#171717" stroke-width="2.4" />
+                <polyline points="3,3 41,30 79,3" fill="none" stroke="#171717" stroke-width="2.4" stroke-linejoin="round" />
+              </svg>
+              <div class="ref-envelope-amount" style="font-size:18px;">$300</div>
+            </div>
+          </div>`
+      },
+      {
+        id: 'elem:segmented_salary_bar',
+        category: 'elements',
+        nameKm: 'របារភាគរយចំណាយ និងថាមពល (Segmented Bar)',
+        nameEn: 'Horizontal Segmented Expense / Energy Progress Bar',
+        thumbHtml: `
+          <div style="width:270px; transform:scale(0.8);">
+            <div class="ref-bar-header" style="font-size:12.5px;">
+              <span>ថាមពលនៅម៉ោង 2:00 រសៀល</span>
+              <span style="color:#FA604E; font-weight:800;">15%</span>
+            </div>
+            <div class="ref-bar-track" style="height:22px;">
+              <div class="ref-bar-segment" style="width:15%; background:#FA604E;"></div>
+              <div class="ref-bar-segment coral-hatch" style="width:85%;"></div>
+            </div>
+          </div>`
+      },
+      {
+        id: 'elem:pawn_ltv_hatch_bar',
+        category: 'elements',
+        nameKm: 'របារឆ្នូតបញ្ឆិតតម្លៃបញ្ចាំ 70-85%',
+        nameEn: 'Loan-to-Value Diagonal Coral Hatch Bar ($966 -> $650)',
+        thumbHtml: `
+          <div style="width:270px; transform:scale(0.76);">
+            <div style="font-size:12px; font-weight:800; margin-bottom:3px;">គ្រឿងអលង្ការ ≈ 70-85% (តម្លៃ $966)</div>
+            <div class="ref-bar-track" style="height:22px;">
+              <div class="ref-bar-segment" style="width:76%; background:#2FAA61;"></div>
+              <div class="ref-bar-segment coral-hatch" style="width:24%;"></div>
+            </div>
+          </div>`
+      },
+      {
+        id: 'elem:sugar_comparison_bars',
+        category: 'elements',
+        nameKm: 'របារប្រៀបធៀបស្ករ WHO ≤25g ទល់នឹង 45g',
+        nameEn: 'WHO Safe Sugar Limit vs 1 Cup Iced Sweet Coffee Bars',
+        thumbHtml: `
+          <div style="width:280px; transform:scale(0.74); display:flex; flex-direction:column; gap:5px;">
+            <div>
+              <div style="display:flex; justify-content:space-between; font-size:11.5px; font-weight:800;">
+                <span>កម្រិត WHO</span><span style="color:#2FAA61;">≤ 25g (6 ស្លាបព្រា)</span>
+              </div>
+              <div class="ref-bar-track" style="height:14px;"><div class="ref-bar-segment" style="width:55%; background:#2FAA61;"></div></div>
+            </div>
+            <div>
+              <div style="display:flex; justify-content:space-between; font-size:11.5px; font-weight:800;">
+                <span>កាហ្វេទឹកកក 1 កែវ</span><span style="color:#FA604E;">45g (11 ស្លាបព្រា)</span>
+              </div>
+              <div class="ref-bar-track" style="height:16px;">
+                <div class="ref-bar-segment" style="width:55%; background:#FA604E;"></div>
+                <div class="ref-bar-segment coral-hatch" style="width:45%;"></div>
+              </div>
+            </div>
+          </div>`
+      },
+      {
+        id: 'elem:glucose_rollercoaster_curve',
+        category: 'elements',
+        nameKm: 'ក្រាហ្វជាតិស្ករ និងអាំងស៊ុយលីន 120 នាទី',
+        nameEn: '120-Minute Blood Sugar Spike & Insulin Wave Graph',
+        thumbHtml: `
+          <svg width="240" height="86" viewBox="0 0 545 200">
+            <line x1="30" y1="135" x2="520" y2="135" stroke="#94A3B8" stroke-width="3" stroke-dasharray="6 4" />
+            <line x1="30" y1="20" x2="30" y2="185" stroke="#171717" stroke-width="4" />
+            <line x1="30" y1="185" x2="520" y2="185" stroke="#171717" stroke-width="4" />
+            <path d="M 30 135 C 85 130, 115 28, 165 28 C 225 28, 285 178, 375 178 C 435 178, 475 160, 510 150" fill="none" stroke="#FA604E" stroke-width="8" stroke-linecap="round" />
+            <path d="M 30 155 C 120 155, 195 58, 255 58 C 315 58, 365 145, 510 150" fill="none" stroke="#5D98E8" stroke-width="6" stroke-dasharray="8 6" />
+            <circle cx="165" cy="28" r="10" fill="#FA604E" stroke="#171717" stroke-width="3" />
+            <circle cx="255" cy="58" r="10" fill="#5D98E8" stroke="#171717" stroke-width="3" />
+            <circle cx="375" cy="178" r="10" fill="#FA604E" stroke="#171717" stroke-width="3" />
+          </svg>`
+      },
+      {
+        id: 'elem:caffeine_halflife_clock',
+        category: 'elements',
+        nameKm: 'តារាងអាយុកាលកាហ្វេអ៊ីន 6 ម៉ោង',
+        nameEn: '6-Hour Caffeine Half-Life Timeline (100% -> 50% -> 25%)',
+        thumbHtml: `
+          <div style="display:flex; align-items:center; gap:5px; transform:scale(0.68);">
+            <div class="km-counter-card" style="padding:5px 8px; align-items:center;">
+              <div class="km-counter-header blue">2:00 រសៀល</div>
+              <div style="font-size:12px; font-weight:800; color:#2FAA61;">100%</div>
+            </div>
+            <span style="font-weight:900;">➔</span>
+            <div class="km-counter-card" style="padding:5px 8px; align-items:center;">
+              <div class="km-counter-header coral">8:00 យប់</div>
+              <div style="font-size:12px; font-weight:800; color:#FA604E;">សល់ 50%</div>
+            </div>
+            <span style="font-weight:900;">➔</span>
+            <div class="km-counter-card" style="padding:5px 8px; align-items:center;">
+              <div class="km-counter-header gold">2:00 ភ្លឺ</div>
+              <div style="font-size:12px; font-weight:800; color:#92400E;">សល់ 25%</div>
+            </div>
+          </div>`
+      },
+      {
+        id: 'elem:cafe_customization_matrix',
+        category: 'elements',
+        nameKm: 'តារាងជ្រើសរើសកាហ្វេទាំង 4 កម្រិត',
+        nameEn: '4-Tier Cambodian Café Customization Matrix (45g -> 0g)',
+        thumbHtml: `
+          <div style="display:flex; flex-direction:column; gap:3px; width:280px; transform:scale(0.74);">
+            <div style="display:flex; justify-content:space-between; background:#FEE2E2; border:1.8px solid #FA604E; border-radius:6px; padding:3px 8px; font-size:10.5px; font-weight:800;">
+              <span>❌ ទឹកដោះគោខាប់ 100%</span><span style="color:#FA604E;">ស្ករ 45g</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; background:#E6F4EA; border:1.8px solid #2FAA61; border-radius:6px; padding:3px 8px; font-size:10.5px; font-weight:800;">
+              <span>✅ ទឹកដោះគោស្រស់ 25%</span><span style="color:#1E7E45;">ស្ករ 6g–8g (-80%)</span>
+            </div>
+          </div>`
+      },
+      {
+        id: 'elem:director_intro_outro_cards',
+        category: 'elements',
+        nameKm: 'ផ្ទាំងចំណងជើងបើកឆាក និងផ្ទាំងបញ្ចប់វីដេអូ',
+        nameEn: 'Director Episode Intro Card & Outro Subscribe CTA Card',
+        thumbHtml: `
+          <div style="transform:scale(0.66); width:340px;">
+            <div class="director-outro-card" style="position:static; padding:8px 12px;">
+              <div>
+                <div class="outro-quote" style="font-size:12px;">«កាហ្វេមិនមែនជាបញ្ហាទេ ស្ករទើបជាអន្ទាក់!»</div>
+                <div class="outro-sub" style="font-size:10px;">សន្សំលុយ $360–$540 ក្នុង 1 ឆ្នាំ</div>
+              </div>
+              <div class="outro-cta-pill" style="font-size:10.5px; padding:4px 9px;">🔔 Subscribe</div>
+            </div>
+          </div>`
+      },
+
+      // -------------------- 2. 2D VECTOR PROPS (8) --------------------
+      {
+        id: 'prop:iced_coffee_cup_hand',
+        category: 'props',
+        nameKm: 'កែវកាហ្វេទឹកដោះគោទឹកកកកាន់នឹងដៃ',
+        nameEn: 'Handheld Iced Sweet Coffee Cup (Dome Lid + Straw + Milk Layer)',
+        thumbHtml: `
+          <svg width="90" height="90" viewBox="-30 -40 60 66">
+            <line x1="0" y1="-16" x2="7" y2="-34" stroke="#2FAA61" stroke-width="3.2" stroke-linecap="round" />
+            <path d="M -14 -10 A 14 11 0 0 1 14 -10 Z" fill="#F8FAFC" stroke="#171717" stroke-width="2.2" />
+            <polygon points="-14,-10 14,-10 11,20 -11,20" fill="#7C4D2B" stroke="#171717" stroke-width="2.2" />
+            <polygon points="-11.8,6 11.8,6 11,20 -11,20" fill="#FEF3C7" stroke="#171717" stroke-width="1.8" />
+          </svg>`
+      },
+      {
+        id: 'prop:giant_iced_coffee_xray',
+        category: 'props',
+        nameKm: 'កែវកាហ្វេឆ្លុះអ៊ិចស្រេ 650ml (ស្ករ 45g)',
+        nameEn: 'Giant 650ml Iced Coffee Cross-Section X-Ray + Flying Sugar Cube',
+        thumbHtml: `
+          <svg width="160" height="96" viewBox="360 155 240 285">
+            ${R.renderIcedCoffeeXrayPropSVG(395, 430)}
+          </svg>`
+      },
+      {
+        id: 'prop:office_desk_laptop',
+        category: 'props',
+        nameKm: 'តុធ្វើការការិយាល័យ និងកុំព្យូទ័រយួរដៃ',
+        nameEn: 'Minimalist Office Desk & Colored-Code Laptop',
+        thumbHtml: `
+          <svg width="180" height="92" viewBox="260 220 265 220">
+            ${R.renderOfficeDeskLaptopSVG(282, 430)}
+          </svg>`
+      },
+      {
+        id: 'prop:pawn_counter_wood',
+        category: 'props',
+        nameKm: 'បញ្ជរហាងបញ្ចាំឈើ និងកញ្ចក់',
+        nameEn: 'Wooden Shop Counter with Glass Top Ledge',
+        thumbHtml: `
+          <svg width="220" height="84" viewBox="120 410 445 115">
+            ${R.renderPawnCounterForegroundSVG(false)}
+          </svg>`
+      },
+      {
+        id: 'prop:digital_gold_scale',
+        category: 'props',
+        nameKm: 'ជញ្ជីងថ្លឹងមាសឌីជីថល $966 + ខ្សែកមាស',
+        nameEn: 'Digital Gold Scale ($966 / តម្លៃមាស) + Gold Necklace',
+        thumbHtml: `
+          <svg width="140" height="94" viewBox="430 315 160 160">
+            ${R.renderPawnCounterForegroundSVG(true, '966')}
+          </svg>`
+      },
+      {
+        id: 'prop:safe_box',
+        category: 'props',
+        nameKm: 'ទូដែកសុវត្ថិភាពហាងបញ្ចាំ',
+        nameEn: 'Dark Slate Metal Safe Box with Combination Dial',
+        thumbHtml: `
+          <svg width="90" height="90" viewBox="-10 -8 94 102">
+            <rect x="0" y="0" width="74" height="86" rx="4" fill="#5D6472" stroke="#171717" stroke-width="2.4" />
+            <rect x="6" y="6" width="62" height="74" rx="2" fill="#687080" stroke="#171717" stroke-width="1.6" />
+            <circle cx="37" cy="43" r="11" fill="#CBD5E1" stroke="#171717" stroke-width="1.8" />
+            <circle cx="37" cy="43" r="3" fill="#475569" />
+          </svg>`
+      },
+      {
+        id: 'prop:tagged_display_shelf',
+        category: 'props',
+        nameKm: 'ធ្នើរដាក់ទំនិញបញ្ចាំមានស្លាកពណ៌លឿង',
+        nameEn: 'Two-Tier Shelf with Yellow-Tagged Items (Tablet, Bowl, Phones)',
+        thumbHtml: `
+          <svg width="160" height="90" viewBox="-8 -42 155 125">
+            <line x1="0" y1="0" x2="138" y2="0" stroke="#7C5836" stroke-width="4" />
+            <line x1="0" y1="62" x2="138" y2="62" stroke="#7C5836" stroke-width="4" />
+            <line x1="6" y1="-8" x2="6" y2="75" stroke="#7C5836" stroke-width="3.5" />
+            <rect x="20" y="-34" width="40" height="28" rx="3" fill="#475569" stroke="#171717" stroke-width="1.8" />
+            <rect x="52" y="-22" width="12" height="7" fill="#FEF08A" stroke="#171717" stroke-width="1" />
+            <ellipse cx="82" cy="-16" rx="18" ry="12" fill="#F8FAFC" stroke="#171717" stroke-width="1.6" />
+            <rect x="94" y="-20" width="12" height="7" fill="#FEF08A" stroke="#171717" stroke-width="1" />
+            <rect x="22" y="34" width="12" height="22" rx="2" fill="#334155" stroke="#171717" stroke-width="1.5" />
+            <rect x="38" y="34" width="12" height="22" rx="2" fill="#334155" stroke="#171717" stroke-width="1.5" />
+            <rect x="54" y="34" width="12" height="22" rx="2" fill="#334155" stroke="#171717" stroke-width="1.5" />
+            <rect x="60" y="42" width="11" height="6" fill="#FEF08A" stroke="#171717" stroke-width="1" />
+          </svg>`
+      },
+      {
+        id: 'prop:smartphone_hand',
+        category: 'props',
+        nameKm: 'ទូរស័ព្ទដៃកាន់នឹងដៃ (Smartphone Prop)',
+        nameEn: 'Handheld Smartphone Prop (gesture: hold-phone)',
+        thumbHtml: `
+          <svg width="76" height="86" viewBox="-20 -25 40 50">
+            <rect x="-10" y="-18" width="20" height="34" rx="4" fill="#1E293B" stroke="#171717" stroke-width="2.4" transform="rotate(-10)" />
+            <rect x="-7" y="-13" width="14" height="24" rx="2" fill="#5D98E8" opacity="0.35" transform="rotate(-10)" />
+          </svg>`
+      },
+
+      // -------------------- 3. SCENE ITEMS & B-ROLL CUTAWAY ICONS (12) --------------------
+      {
+        id: 'item:essential_food_plate',
+        category: 'items',
+        nameKm: 'អាហារប្រចាំថ្ងៃ (Food Plate & Utensils)',
+        nameEn: 'Essential Expense Circular Icon: Plate, Spoon & Fork',
+        thumbHtml: `
+          <div class="ref-circle-icon" style="transform:scale(1.1);">
+            <svg width="34" height="34" viewBox="0 0 36 36">
+              <circle cx="18" cy="18" r="10" fill="#E5E7EB" stroke="#171717" stroke-width="2" />
+              <line x1="5" y1="10" x2="5" y2="26" stroke="#171717" stroke-width="2" stroke-linecap="round" />
+              <line x1="31" y1="10" x2="31" y2="26" stroke="#171717" stroke-width="2" stroke-linecap="round" />
+            </svg>
+          </div>`
+      },
+      {
+        id: 'item:essential_house',
+        category: 'items',
+        nameKm: 'ផ្ទះសម្បែង / ឈ្នួលផ្ទះ (House Silhouette)',
+        nameEn: 'Essential Expense Circular Icon: Home & Roof',
+        thumbHtml: `
+          <div class="ref-circle-icon" style="transform:scale(1.1);">
+            <svg width="34" height="34" viewBox="0 0 36 36">
+              <polygon points="18,7 6,18 30,18" fill="#FA604E" stroke="#171717" stroke-width="2" stroke-linejoin="round" />
+              <rect x="10" y="18" width="16" height="12" fill="#FFFFFF" stroke="#171717" stroke-width="2" />
+              <rect x="15" y="22" width="6" height="8" fill="#EABF42" stroke="#171717" stroke-width="1.6" />
+            </svg>
+          </div>`
+      },
+      {
+        id: 'item:essential_blue_scooter',
+        category: 'items',
+        nameKm: 'ម៉ូតូធ្វើដំណើរពណ៌ខៀវ (Blue Commuter Scooter)',
+        nameEn: 'Essential Expense Circular Icon: Blue Scooter / Moto',
+        thumbHtml: `
+          <div class="ref-circle-icon" style="transform:scale(1.1);">
+            <svg width="36" height="36" viewBox="0 0 36 36">
+              <circle cx="10" cy="25" r="4" fill="#171717" />
+              <circle cx="26" cy="25" r="4" fill="#171717" />
+              <path d="M 10 25 L 16 25 L 20 16 L 26 25" fill="none" stroke="#5D98E8" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+              <line x1="18" y1="13" x2="23" y2="13" stroke="#171717" stroke-width="2.2" stroke-linecap="round" />
+            </svg>
+          </div>`
+      },
+      {
+        id: 'item:green_coin_stack',
+        category: 'items',
+        nameKm: 'គំនរកាក់ប្រាក់សន្សំពណ៌បៃតង + ស្លាកនៅសល់តិច',
+        nameEn: 'Coral Alert Pill (នៅសល់តិច) + Green Savings Coin Stack',
+        thumbHtml: `
+          <div style="display:flex; align-items:center; gap:10px;">
+            <span class="ref-coral-pill" style="font-size:12px;">នៅសល់តិច</span>
+            <svg width="36" height="40" viewBox="0 0 32 36">
+              <ellipse cx="16" cy="28" rx="12" ry="4.5" fill="#2FAA61" stroke="#171717" stroke-width="2" />
+              <ellipse cx="16" cy="22" rx="12" ry="4.5" fill="#4ADE80" stroke="#171717" stroke-width="2" />
+              <ellipse cx="16" cy="16" rx="12" ry="4.5" fill="#86EFAC" stroke="#171717" stroke-width="2" />
+            </svg>
+          </div>`
+      },
+      {
+        id: 'item:gold_necklace_pendant',
+        category: 'items',
+        nameKm: 'ខ្សែកមាស និងបន្តោងពេជ្រ ($966)',
+        nameEn: 'Gold Necklace & Diamond Pendant on Scale Tray',
+        thumbHtml: `
+          <svg width="110" height="60" viewBox="20 0 84 40">
+            <ellipse cx="62" cy="20" rx="38" ry="9" fill="#F1F5F9" stroke="#171717" stroke-width="2" />
+            <path d="M 32 14 Q 62 30 92 14 Q 78 26 62 28 Q 46 26 32 14 Z" fill="#EABF42" stroke="#B45309" stroke-width="1.8" />
+            <polygon points="62,22 57,29 62,36 67,29" fill="#FDE047" stroke="#B45309" stroke-width="1.4" />
+          </svg>`
+      },
+      {
+        id: 'item:broll_stomach_acid',
+        category: 'items',
+        nameKm: 'B-Roll ក្រពះទទេ និងអាស៊ីតកើនឡើង',
+        nameEn: 'B-Roll Macro Card: Empty Stomach & Rising Gastric Acid',
+        thumbHtml: `
+          <div style="display:flex; align-items:center; gap:10px; background:#FFFFFF; border:2px solid #171717; border-radius:10px; padding:6px 10px; transform:scale(0.84);">
+            <svg width="42" height="42" viewBox="0 0 46 46">
+              <path d="M16 12 C11 12, 10 22, 14 29 C17 34, 27 36, 31 30 C35 24, 32 15, 25 14 Z" fill="#FEE2E2" stroke="#171717" stroke-width="2.2"/>
+              <path d="M15 26 Q23 23 30 26" stroke="#FA604E" stroke-width="2.5" fill="none"/>
+              <circle cx="20" cy="29" r="2" fill="#FA604E"/><circle cx="26" cy="28" r="2.2" fill="#FA604E"/>
+            </svg>
+            <div style="font-size:11.5px; font-weight:800;">ក្រពះទទេ + អាស៊ីត ↑</div>
+          </div>`
+      },
+      {
+        id: 'item:broll_low_battery_crash',
+        category: 'items',
+        nameKm: 'B-Roll ថ្មថាមពលធ្លាក់សល់ 15% (Sugar Crash)',
+        nameEn: 'B-Roll Cutaway Icon: Afternoon 15% Low Battery Crash',
+        thumbHtml: `
+          <div style="display:flex; align-items:center; gap:10px; background:#FFFFFF; border:2px solid #171717; border-radius:10px; padding:6px 10px; transform:scale(0.84);">
+            <svg width="42" height="42" viewBox="0 0 46 46">
+              <rect x="8" y="14" width="26" height="18" rx="4" fill="#FEE2E2" stroke="#171717" stroke-width="2.2"/>
+              <rect x="34" y="19" width="4" height="8" rx="1" fill="#171717"/>
+              <rect x="11" y="17" width="6" height="12" rx="2" fill="#FA604E"/>
+            </svg>
+            <div style="font-size:11.5px; font-weight:800;">ថាមពលសល់ 15%</div>
+          </div>`
+      },
+      {
+        id: 'item:broll_blood_vessel_sugar',
+        category: 'items',
+        nameKm: 'B-Roll សរសៃឈាម និងស្កររាវ 0g Fiber',
+        nameEn: 'B-Roll Macro Card: Liquid Glucose Entering Bloodstream',
+        thumbHtml: `
+          <div style="display:flex; align-items:center; gap:10px; background:#FFFFFF; border:2px solid #171717; border-radius:10px; padding:6px 10px; transform:scale(0.84);">
+            <svg width="42" height="42" viewBox="0 0 46 46">
+              <rect x="6" y="16" width="34" height="14" rx="7" fill="#FEE2E2" stroke="#171717" stroke-width="2"/>
+              <circle cx="15" cy="23" r="3.5" fill="#FA604E"/>
+              <circle cx="24" cy="21" r="3" fill="#FFFFFF" stroke="#171717" stroke-width="1.5"/>
+              <circle cx="32" cy="24" r="3" fill="#FFFFFF" stroke="#171717" stroke-width="1.5"/>
+            </svg>
+            <div style="font-size:11.5px; font-weight:800;">ស្កររាវ 0g Fiber</div>
+          </div>`
+      },
+      {
+        id: 'item:broll_pancreas_insulin',
+        category: 'items',
+        nameKm: 'B-Roll លំពែងបញ្ចេញអរម៉ូនអាំងស៊ុយលីន',
+        nameEn: 'B-Roll Organ Card: Pancreas Releasing Insulin Surge',
+        thumbHtml: `
+          <div style="display:flex; align-items:center; gap:10px; background:#FFFFFF; border:2px solid #171717; border-radius:10px; padding:6px 10px; transform:scale(0.84);">
+            <svg width="42" height="42" viewBox="0 0 46 46">
+              <path d="M10 26 C10 15, 24 14, 35 20 C38 22, 37 31, 28 32 C19 33, 10 31, 10 26 Z" fill="#FEF3C7" stroke="#171717" stroke-width="2.2"/>
+              <circle cx="20" cy="24" r="3" fill="#5D98E8"/><circle cx="28" cy="25" r="2.5" fill="#FA604E"/>
+            </svg>
+            <div style="font-size:11.5px; font-weight:800;">លំពែង + Insulin</div>
+          </div>`
+      },
+      {
+        id: 'item:broll_brain_sleep_wave',
+        category: 'items',
+        nameKm: 'B-Roll រលកខួរក្បាលដំណេកជ្រៅ (Deep Sleep)',
+        nameEn: 'B-Roll Brain Wave Card: Slow-Wave Deep Sleep Disruption',
+        thumbHtml: `
+          <div style="display:flex; align-items:center; gap:10px; background:#FFFFFF; border:2px solid #171717; border-radius:10px; padding:6px 10px; transform:scale(0.84);">
+            <svg width="42" height="42" viewBox="0 0 46 46">
+              <polyline points="4,24 12,12 18,34 24,15 31,31 37,20 42,24" fill="none" stroke="#5D98E8" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <div style="font-size:11.5px; font-weight:800;">រលក Deep Sleep</div>
+          </div>`
+      },
+      {
+        id: 'item:broll_skin_collagen_ages',
+        category: 'items',
+        nameKm: 'B-Roll សរសៃកូឡាជែនស្បែក និងប្រតិកម្ម AGEs',
+        nameEn: 'B-Roll Collagen Card: Sugar Glycation AGEs Skin Aging',
+        thumbHtml: `
+          <div style="display:flex; align-items:center; gap:10px; background:#FFFFFF; border:2px solid #171717; border-radius:10px; padding:6px 10px; transform:scale(0.84);">
+            <svg width="42" height="42" viewBox="0 0 46 46">
+              <line x1="8" y1="14" x2="38" y2="14" stroke="#2FAA61" stroke-width="2.8"/>
+              <polyline points="8,28 18,23 24,33 32,22 38,30" fill="none" stroke="#FA604E" stroke-width="2.8"/>
+            </svg>
+            <div style="font-size:11.5px; font-weight:800;">កូឡាជែន AGEs</div>
+          </div>`
+      },
+      {
+        id: 'item:broll_tongue_taste_buds',
+        category: 'items',
+        nameKm: 'B-Roll គ្រាប់ពករសជាតិលើអណ្តាត (10–14 ថ្ងៃ)',
+        nameEn: 'B-Roll Taste Buds Card: 10–14 Day Sweetness Adaptation',
+        thumbHtml: `
+          <div style="display:flex; align-items:center; gap:10px; background:#FFFFFF; border:2px solid #171717; border-radius:10px; padding:6px 10px; transform:scale(0.84);">
+            <svg width="42" height="42" viewBox="0 0 46 46">
+              <path d="M13 18 Q23 38 33 18 Z" fill="#FCA5A5" stroke="#171717" stroke-width="2.2"/>
+              <circle cx="20" cy="23" r="2" fill="#2FAA61"/><circle cx="26" cy="23" r="2" fill="#2FAA61"/><circle cx="23" cy="28" r="2" fill="#2FAA61"/>
+            </svg>
+            <div style="font-size:11.5px; font-weight:800;">រសជាតិ 10–14 ថ្ងៃ</div>
+          </div>`
+      },
+
+      // -------------------- 4. ANTHOLOGY CAST CHARACTERS (6) --------------------
+      {
+        id: 'char:dara',
+        category: 'characters',
+        nameKm: 'តារា (Dara — តួអង្គឯក EP01)',
+        nameEn: 'Minimal Stick Rig • Short-Spiky Hair • Hold Iced Coffee Prop',
+        actorConfig: { id: 'char_dara', name: 'តារា', style: 'minimal', hair: 'short-spiky', emotion: 'happy', gesture: 'hold-coffee', blackNameTag: 'តារា' },
+        thumbHtml: `
+          <svg width="110" height="96" viewBox="170 140 150 310">
+            ${R.renderActorSVG({ x: 245, y: 430, style: 'minimal', hair: 'short-spiky', emotion: 'happy', gesture: 'hold-coffee' })}
+          </svg>`
+      },
+      {
+        id: 'char:nary',
+        category: 'characters',
+        nameKm: 'ណារី (Dr. Nary — អ្នកជំនាញអាហារូបត្ថម្ភ EP01)',
+        nameEn: 'Outfitted Pill Torso • Teal Blazer (#2FAA61) • Top-Bun & Glasses',
+        actorConfig: { id: 'char_nary', name: 'ណារី', style: 'outfitted', hair: 'top-bun-glasses', outfit: 'teal-health', emotion: 'calm', gesture: 'explain', blackNameTag: 'ណារី' },
+        thumbHtml: `
+          <svg width="110" height="96" viewBox="170 140 150 310">
+            ${R.renderActorSVG({ x: 245, y: 430, style: 'outfitted', hair: 'top-bun-glasses', outfit: 'teal-health', emotion: 'calm', gesture: 'explain' })}
+          </svg>`
+      },
+      {
+        id: 'char:barista',
+        category: 'characters',
+        nameKm: 'បងសុខ (Bong Sok — អ្នកឆុងកាហ្វេ EP01)',
+        nameEn: 'Outfitted Pill Torso • Espresso Apron (#7C4D2B) • Curly Hair',
+        actorConfig: { id: 'char_barista', name: 'បងសុខ', style: 'outfitted', hair: 'curly-clerk', outfit: 'barista-apron', emotion: 'happy', gesture: 'open-welcome', blackNameTag: 'បងសុខ' },
+        thumbHtml: `
+          <svg width="110" height="96" viewBox="170 140 150 310">
+            ${R.renderActorSVG({ x: 245, y: 430, style: 'outfitted', hair: 'curly-clerk', outfit: 'barista-apron', emotion: 'happy', gesture: 'open-welcome' })}
+          </svg>`
+      },
+      {
+        id: 'char:heng',
+        category: 'characters',
+        nameKm: 'ហេង (Heng — តួអង្គប្រាក់ខែ $300)',
+        nameEn: 'Minimal Stick Rig • Open-Welcome Pose • Black Name Tag',
+        actorConfig: { id: 'heng', name: 'ហេង', style: 'minimal', emotion: 'happy', gesture: 'open-welcome', blackNameTag: 'ហេង' },
+        thumbHtml: `
+          <svg width="110" height="96" viewBox="170 120 150 330">
+            ${R.renderActorSVG({ x: 245, y: 430, style: 'minimal', emotion: 'happy', gesture: 'open-welcome', blackNameTag: 'ហេង' })}
+          </svg>`
+      },
+      {
+        id: 'char:chorna',
+        category: 'characters',
+        nameKm: 'ចរណា (Chorna — អតិថិជនហាងបញ្ចាំ)',
+        nameEn: 'Outfitted Pill Torso • Blue Shirt & Crossbody Bag • Side Ponytail',
+        actorConfig: { id: 'chorna', name: 'ចរណា', style: 'outfitted', hair: 'side-ponytail', outfit: 'blue-orange-bag', emotion: 'worried', gesture: 'raise-left-hand', blackNameTag: 'ចរណា' },
+        thumbHtml: `
+          <svg width="110" height="96" viewBox="170 140 150 310">
+            ${R.renderActorSVG({ x: 245, y: 430, style: 'outfitted', hair: 'side-ponytail', outfit: 'blue-orange-bag', emotion: 'worried', gesture: 'raise-left-hand' })}
+          </svg>`
+      },
+      {
+        id: 'char:kunthea',
+        category: 'characters',
+        nameKm: 'គន្ធា (Kunthea — អ្នកវាយតម្លៃមាស)',
+        nameEn: 'Outfitted Pill Torso • Olive Clerk Uniform (#556B2F) • Glasses',
+        actorConfig: { id: 'kunthea', name: 'គន្ធា', style: 'outfitted', hair: 'top-bun-glasses', outfit: 'olive-clerk', emotion: 'calm', gesture: 'explain', blackNameTag: 'គន្ធា' },
+        thumbHtml: `
+          <svg width="110" height="96" viewBox="170 140 150 310">
+            ${R.renderActorSVG({ x: 245, y: 430, style: 'outfitted', hair: 'top-bun-glasses', outfit: 'olive-clerk', emotion: 'calm', gesture: 'explain' })}
+          </svg>`
+      },
+
+      // -------------------- 5. REUSABLE MINIMALIST LOCATIONS (12) --------------------
+      ...[
+        { locId: 'office', km: '1. ការិយាល័យធ្វើការ (Office + Desk + Window)', en: 'Clean #FFFFFF Canvas + Office Desk & Ambient Window' },
+        { locId: 'shop', km: '2. ហាងបញ្ចាំ / ហាងទំនិញ (Shop / Pawn Counter)', en: 'Architectural Linework + Safe + Tagged Shelf' },
+        { locId: 'whiteboard', km: '3. ផ្ទាំងពន្យល់ពណ៌ស (Whiteboard Explainer)', en: 'Pure High-Key Explainer Space (#FFFFFF)' },
+        { locId: 'bedroom', km: '4. បន្ទប់គេងពេលយប់ (Bedroom + Bed + Clock)', en: 'Minimalist Bed Silhouette & Night Wall Clock' },
+        { locId: 'kitchen', km: '5. ផ្ទះបាយ និងតុអាហារ (Kitchen Countertop)', en: 'Countertop Table & Healthy Green Bowl' },
+        { locId: 'classroom', km: '6. ថ្នាក់រៀន (Classroom Whiteboard)', en: 'Classroom Board & Diagram Lines' },
+        { locId: 'living-room', km: '7. បន្ទប់ទទួលភ្ញៀវ (Living Room Sofa)', en: 'Sofa Silhouette & Ambient Window Motion' },
+        { locId: 'dining-room', km: '8. បន្ទប់ញ៉ាំអាហារ (Dining Room Table)', en: 'Dining Table & Healthy Meal Setup' },
+        { locId: 'park', km: '9. សួនច្បារសាធារណៈ (Park Tree & Bench)', en: 'Minimalist Tree, Park Bench & Passing Vehicle' },
+        { locId: 'street', km: '10. ផ្លូវសាធារណៈ (Street Sidewalk Horizon)', en: 'Sidewalk Horizon & Continuous Street Motion' },
+        { locId: 'gym', km: '11. កន្លែងហាត់ប្រាណ (Gym Mat & Dumbbell)', en: 'Exercise Mat & Dumbbell Silhouette' },
+        { locId: 'home', km: '12. ក្នុងផ្ទះ (Home Interior)', en: 'Home Interior Sofa & Window' }
+      ].map((l) => ({
+        id: `loc:${l.locId}`,
+        category: 'locations',
+        locId: l.locId,
+        nameKm: l.km,
+        nameEn: l.en,
+        thumbHtml: `
+          <svg width="210" height="92" viewBox="50 60 860 420">
+            ${R.renderLocationSVG(l.locId, { showPawnSign: l.locId === 'shop', envOpacity: 1 })}
+          </svg>`
+      }))
+    ];
+  }
+
+  // Map each asset ID to the EP01 shot numbers where it appears
+  const ASSET_SHOT_USAGE = {
+    'elem:km_key_tracker': [1, 2, 3, 4, 5, 6, 7, 8],
+    'elem:calendar_badge': [1, 2],
+    'elem:km_clipped_card': [1, 2, 3, 5, 6, 7],
+    'elem:km_dot_pill': [1, 2, 3, 4, 5, 7],
+    'elem:km_counter_card': [5, 6],
+    'elem:km_stamp_badge': [2, 3, 7],
+    'elem:km_checklist_card': [8],
+    'elem:speech_bubble_yellow_tag': [1, 2, 3, 8],
+    'elem:mint_salary_envelope': [],
+    'elem:segmented_salary_bar': [1, 2, 3],
+    'elem:pawn_ltv_hatch_bar': [2, 3],
+    'elem:sugar_comparison_bars': [3],
+    'elem:glucose_rollercoaster_curve': [4],
+    'elem:caffeine_halflife_clock': [5],
+    'elem:cafe_customization_matrix': [7],
+    'elem:director_intro_outro_cards': [1, 8],
+    'prop:iced_coffee_cup_hand': [1, 8],
+    'prop:giant_iced_coffee_xray': [3],
+    'prop:office_desk_laptop': [1, 2],
+    'prop:pawn_counter_wood': [],
+    'prop:digital_gold_scale': [],
+    'prop:safe_box': [],
+    'prop:tagged_display_shelf': [],
+    'prop:smartphone_hand': [],
+    'item:essential_food_plate': [],
+    'item:essential_house': [],
+    'item:essential_blue_scooter': [],
+    'item:green_coin_stack': [],
+    'item:gold_necklace_pendant': [],
+    'item:broll_stomach_acid': [1],
+    'item:broll_low_battery_crash': [2],
+    'item:broll_blood_vessel_sugar': [3],
+    'item:broll_pancreas_insulin': [4],
+    'item:broll_brain_sleep_wave': [5],
+    'item:broll_skin_collagen_ages': [6],
+    'item:broll_tongue_taste_buds': [7],
+    'char:dara': [1, 2, 3, 5, 8],
+    'char:nary': [4, 6, 7, 8],
+    'char:barista': [9],
+    'char:heng': [],
+    'char:chorna': [],
+    'char:kunthea': [],
+    'loc:office': [1, 2],
+    'loc:whiteboard': [3, 4, 6, 7, 8],
+    'loc:bedroom': [5]
+  };
+
+  function jumpToShotTimestamp(targetSeconds) {
     const shot = getActiveShots()[state.currentShotIndex];
+    if (!shot) return;
+    if (state.inspectedAssetId) {
+      loadShot(state.currentShotIndex, false);
+    }
+    const totalDur = Math.max(4.0, state.shotDuration || shot.defaultDuration || 8.0);
+    const clamped = Math.max(0, Math.min(totalDur - 0.1, targetSeconds));
+    state.shotElapsed = clamped;
+    state.shotStartTime = performance.now() - clamped * 1000;
 
-    const payload = `/* =========================================================
- * APPROVED KHMER 2D STICK-FIGURE VISUAL SYSTEM TOKENS (v2.0)
- * Calibrated for Antigravity HTML/CSS/SVG Scene Generation
- * ========================================================= */
-:root {
-  /* Semantic Palette */
-  --canvas-bg: #F5F5F3;
-  --card-fill: #FFFFFF;
-  --ink-primary: #171717;
-  --env-neutral: #E5E7EB;
-  --sem-green: #2FAA61;
-  --sem-coral: #FA604E;
-  --sem-blue: #5D98E8;
-  --sem-gold: #EABF42;
-
-  /* Approved Rig Proportions (1:${ratio} Head-to-Body Ratio) */
-  --rig-stroke-width: ${state.strokeWidth}px;
-  --rig-head-radius: ${state.headRadius}px;
-  --rig-torso-length: ${state.torsoLength}px;
-  --rig-limb-length: ${state.limbLength}px;
-
-  /* Approved Acting & Timing Intervals */
-  --act-blink-interval: ${state.blinkInterval}s;
-  --act-gesture-amplitude: ${state.gestureAmplitude}x;
-  --act-mouth-cadence: ${state.mouthCadence}Hz;
-  --env-anchor-scale: ${state.envScale}%;
-
-  /* Approved Khmer Post-Editable DOM Typography */
-  --khmer-font-family: '${state.khmerFont}', sans-serif;
-  --khmer-font-scale: ${state.fontScale};
-  --khmer-line-height: ${state.lineHeight};
-}
-
-/* =========================================================
- * ANTIGRAVITY SCENE PROMPT TEMPLATE (COPY & PASTE)
- * ========================================================= */
-Build an interactive 2D educational HTML/CSS/SVG scene (${state.aspect} aspect ratio, ${shot.mode} mode):
-- Use Master Design System v2.0 floating in-world infographics & speech bubbles with #171717 (${state.strokeWidth}px) outlines.
-- Stick-figure rig: ${state.headRadius}px white-filled head, ${state.torsoLength}px torso, ${state.limbLength}px slim limbs (1:${ratio} ratio).
-- Acting: Blink every ${state.blinkInterval}s, syllable lip-sync at ${state.mouthCadence}Hz (or WebAudio RMS), gesture amplitude ${state.gestureAmplitude}x.
-- Render all Khmer labels and percentages as native editable DOM text using '${state.khmerFont}' with line-height ${state.lineHeight} inside the 10% title-safe margin.`;
-
-    const pre = document.getElementById('exportCodeBlock');
-    if (pre) pre.textContent = payload;
-    const modal = document.getElementById('exportModal');
-    if (modal) modal.classList.add('open');
+    if (state.externalAudio && isFinite(state.externalAudio.duration)) {
+      state.externalAudio.currentTime = Math.min(state.externalAudio.duration - 0.05, clamped);
+    }
+    applyInfographicTimelineState(clamped, true);
+    updateShotTimelineEffects(clamped);
+    updateVoiceRunningCaption(shot, clamped, true);
   }
 
-  function closeExportModal() {
-    const modal = document.getElementById('exportModal');
-    if (modal) modal.classList.remove('open');
+  function highlightActiveCaptionBeat(shot, elapsed) {
+    const container = document.getElementById('shotCaptionBeatsList');
+    if (!container || !shot || !Array.isArray(shot.captionBeats)) return;
+    let activeIdx = 0;
+    for (let i = 0; i < shot.captionBeats.length; i++) {
+      if (elapsed >= shot.captionBeats[i].at) {
+        activeIdx = i;
+      }
+    }
+    container.querySelectorAll('.shot-beat-row').forEach((row, idx) => {
+      row.classList.toggle('active-beat', idx === activeIdx);
+    });
   }
 
-  function copyExportTokens() {
-    const pre = document.getElementById('exportCodeBlock');
-    if (!pre) return;
-    navigator.clipboard.writeText(pre.textContent);
-    const toast = document.getElementById('copyToast');
-    if (toast) {
-      toast.style.opacity = '1';
-      setTimeout(() => {
-        toast.style.opacity = '0';
-      }, 2200);
+  function renderActiveShotInspector(shot) {
+    const badgeEl = document.getElementById('shotInspectorBadge');
+    const summaryEl = document.getElementById('shotSummaryCard');
+    const beatsEl = document.getElementById('shotCaptionBeatsList');
+    if (!shot) return;
+
+    const shotNum = state.currentShotIndex + 1;
+    if (badgeEl) {
+      badgeEl.textContent = `Shot 0${shotNum}`;
+    }
+
+    if (summaryEl) {
+      const usedAssets = Object.entries(ASSET_SHOT_USAGE)
+        .filter(([, shots]) => shots.includes(shotNum))
+        .map(([id]) => id);
+
+      const dur = (state.shotDuration || shot.defaultDuration || 8.0).toFixed(1);
+      const trans = (shot.transitionType || 'wipe').toUpperCase();
+      const loc = `loc:${shot.location || 'whiteboard'}`;
+
+      summaryEl.innerHTML = `
+        <div style="font-weight:700; color:#FFFFFF; font-size:12.5px;">${shot.title}</div>
+        <div class="shot-meta-grid">
+          <div class="shot-meta-cell">
+            <div class="shot-meta-label">Mode & Transition</div>
+            <div class="shot-meta-val">${shot.mode} • ${trans}</div>
+          </div>
+          <div class="shot-meta-cell">
+            <div class="shot-meta-label">Location & Duration</div>
+            <div class="shot-meta-val">${shot.location} (${dur}s)</div>
+          </div>
+        </div>
+        <div style="font-size:10px; font-weight:700; color:#9CA3AF; text-transform:uppercase; margin-top:2px;">
+          Assets in this Shot (Click to Inspect):
+        </div>
+        <div class="shot-used-assets-wrap">
+          ${(usedAssets.length ? usedAssets : [loc])
+            .map((id) => `<button type="button" class="shot-used-pill" data-inspect-id="${id}">${id}</button>`)
+            .join('')}
+        </div>
+      `;
+
+      summaryEl.querySelectorAll('.shot-used-pill').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          inspectStudioAsset(btn.getAttribute('data-inspect-id'));
+        });
+      });
+    }
+
+    if (beatsEl) {
+      const beats =
+        Array.isArray(shot.captionBeats) && shot.captionBeats.length > 0
+          ? shot.captionBeats
+          : shot.captionKhmer
+            ? [{ at: 0.0, text: shot.captionKhmer }]
+            : [];
+
+      if (beats.length === 0) {
+        beatsEl.innerHTML = `<div style="font-size:11.5px; color:#9CA3AF;">No subtitle beats in this tab.</div>`;
+      } else {
+        beatsEl.innerHTML = beats
+          .map(
+            (b, idx) => `
+            <div class="shot-beat-row ${idx === 0 ? 'active-beat' : ''}" data-beat-at="${b.at}">
+              <div class="shot-beat-time">
+                <span>⏱️ ${b.at.toFixed(1)}s — Beat ${idx + 1}</span>
+                <span style="color:#93C5FD; font-size:9.5px;">Preview Beat ➔</span>
+              </div>
+              <div class="shot-beat-text">${b.text}</div>
+            </div>
+          `
+          )
+          .join('');
+
+        beatsEl.querySelectorAll('.shot-beat-row').forEach((row) => {
+          row.addEventListener('click', () => {
+            const atSec = parseFloat(row.getAttribute('data-beat-at')) || 0;
+            jumpToShotTimestamp(atSec + 0.15);
+          });
+        });
+      }
+    }
+  }
+
+  function renderAssetLibrary() {
+    const listEl = document.getElementById('leftAssetLibraryList');
+    const badgeEl = document.getElementById('assetTotalBadge');
+    if (!listEl) return;
+
+    const allAssets = getStudioAssetsCatalog();
+    const cat = state.assetFilterCategory || 'all';
+    const q = (state.assetSearchQuery || '').trim().toLowerCase();
+
+    const filtered = allAssets.filter((item) => {
+      if (cat !== 'all' && item.category !== cat) return false;
+      if (!q) return true;
+      return (
+        item.id.toLowerCase().includes(q) ||
+        item.nameKm.toLowerCase().includes(q) ||
+        item.nameEn.toLowerCase().includes(q)
+      );
+    });
+
+    if (badgeEl) {
+      badgeEl.textContent = `${filtered.length} / ${allAssets.length} Assets`;
+    }
+
+    const groupTitles = {
+      elements: '📊 FLOATING INFOGRAPHIC ELEMENTS (16)',
+      props: '☕ 2D VECTOR FOREGROUND PROPS (8)',
+      items: '🎞️ SCENE ITEMS & B-ROLL ICONS (12)',
+      characters: '🧑 ANTHOLOGY CAST CHARACTERS (6)',
+      locations: '🏢 MINIMALIST 2D LOCATIONS (12)'
+    };
+
+    const categoriesOrder = ['elements', 'props', 'items', 'characters', 'locations'];
+    let htmlParts = [];
+
+    categoriesOrder.forEach((groupCat) => {
+      const groupItems = filtered.filter((a) => a.category === groupCat);
+      if (groupItems.length === 0) return;
+
+      htmlParts.push(`
+        <div class="asset-group-header">
+          <span>${groupTitles[groupCat]}</span>
+          <span>${groupItems.length}</span>
+        </div>
+      `);
+
+      groupItems.forEach((asset) => {
+        const isActive = state.inspectedAssetId === asset.id;
+        const usedShots = ASSET_SHOT_USAGE[asset.id] || [];
+        const usedBadgesHtml =
+          usedShots.length > 0
+            ? `<div class="used-shots-row">
+                <span style="font-size:9.5px; color:#9CA3AF; align-self:center;">Used in:</span>
+                ${usedShots
+                  .map((sNum) => `<button type="button" class="used-shot-tag" data-jump-shot="${sNum - 1}">Shot 0${sNum}</button>`)
+                  .join('')}
+              </div>`
+            : '';
+
+        htmlParts.push(`
+          <div class="asset-card ${isActive ? 'active' : ''}" data-asset-id="${asset.id}">
+            <div class="asset-thumb-box">
+              <span class="asset-cat-tag ${asset.category}">${asset.category.toUpperCase()}</span>
+              ${asset.thumbHtml}
+            </div>
+            <div class="asset-card-body">
+              <div class="asset-id-row">
+                <span class="asset-id-code">${asset.id}</span>
+                <button type="button" class="copy-id-btn" data-copy-id="${asset.id}">📋 Copy ID</button>
+              </div>
+              <div class="asset-name-km">${asset.nameKm}</div>
+              <div class="asset-name-en">${asset.nameEn}</div>
+              ${usedBadgesHtml}
+            </div>
+          </div>
+        `);
+      });
+    });
+
+    if (htmlParts.length === 0) {
+      htmlParts.push(`
+        <div style="padding:24px 12px; text-align:center; color:#9CA3AF; font-size:12px;">
+          No elements, props, or items match "${state.assetSearchQuery}".
+        </div>
+      `);
+    }
+
+    listEl.innerHTML = htmlParts.join('');
+
+    listEl.querySelectorAll('.asset-card').forEach((card) => {
+      card.addEventListener('click', (e) => {
+        if (e.target.closest('.copy-id-btn') || e.target.closest('.used-shot-tag')) return;
+        const assetId = card.getAttribute('data-asset-id');
+        inspectStudioAsset(assetId);
+      });
+    });
+
+    listEl.querySelectorAll('.copy-id-btn').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const idText = btn.getAttribute('data-copy-id');
+        navigator.clipboard.writeText(idText);
+        btn.textContent = '✓ Copied!';
+        setTimeout(() => {
+          btn.textContent = '📋 Copy ID';
+        }, 1400);
+      });
+    });
+
+    listEl.querySelectorAll('.used-shot-tag').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const idx = parseInt(btn.getAttribute('data-jump-shot'), 10);
+        if (state.activeDeck !== 'ep01') {
+          state.activeDeck = 'ep01';
+          const deckSel = document.getElementById('selectEpisodeDeck');
+          if (deckSel) deckSel.value = 'ep01';
+          renderShotTabs();
+        }
+        loadShot(idx, true);
+      });
+    });
+  }
+
+  function inspectStudioAsset(assetId) {
+    const allAssets = getStudioAssetsCatalog();
+    const asset = allAssets.find((a) => a.id === assetId);
+    if (!asset) return;
+
+    if (state.shotPlaying || state.autoAdvanceEpisode) {
+      state.autoAdvanceEpisode = false;
+      stopShotPlayback();
+    }
+
+    state.inspectedAssetId = asset.id;
+
+    document.querySelectorAll('.asset-card').forEach((c) => {
+      c.classList.toggle('active', c.getAttribute('data-asset-id') === asset.id);
+    });
+
+    const bannerEl = document.getElementById('inspectedAssetBanner');
+    const bannerIdText = document.getElementById('inspectedAssetIdText');
+    if (bannerEl && bannerIdText) {
+      bannerEl.classList.remove('hidden');
+      bannerIdText.textContent = `${asset.id} — ${asset.nameKm}`;
+    }
+
+    const dirBanner = document.getElementById('directorSectionBanner');
+    if (dirBanner) {
+      dirBanner.textContent = `🔍 ASSET INSPECTOR • ${asset.id}`;
+    }
+
+    const envSvg = document.getElementById('environmentSvgGroup');
+    const charSvg = document.getElementById('characterSvgGroup');
+    const infoContainer = document.getElementById('infographicContainer');
+    const R = window.CharacterRig;
+
+    if (!envSvg || !charSvg || !infoContainer) return;
+
+    if (asset.category === 'locations') {
+      envSvg.innerHTML = R.renderLocationSVG(asset.locId, {
+        showPawnSign: asset.locId === 'shop',
+        envOpacity: 1
+      });
+      charSvg.innerHTML =
+        asset.locId === 'shop' ? R.renderPawnCounterForegroundSVG(true, '966') : '';
+      infoContainer.innerHTML = `
+        <div class="km-clipped-card" style="position:absolute; top:20px; left:24px; z-index:35;">
+          <div style="font-family:var(--font-mono); font-size:12px; font-weight:800; color:#2FAA61;">${asset.id}</div>
+          <div class="editable-text-node" contenteditable="true" style="font-size:16px; font-weight:800; color:#171717;">${asset.nameKm}</div>
+          <div style="font-size:12px; color:#64748B; font-weight:600;">${asset.nameEn}</div>
+        </div>
+      `;
+    } else if (asset.category === 'characters') {
+      const cfg = asset.actorConfig;
+      const activeEmo = state.inspectedCharEmotion || cfg.emotion || 'happy';
+      const activeGes = state.inspectedCharGesture || cfg.gesture || 'idle';
+      const emotions = ['neutral', 'happy', 'sad', 'worried', 'surprised', 'confused', 'thinking', 'excited', 'angry', 'tired', 'embarrassed', 'proud', 'scared', 'calm', 'determined'];
+      const gestures = ['idle', 'hold-coffee', 'explain', 'point-right', 'think', 'open-welcome', 'sad-droop', 'jump-celebrate', 'walk'];
+
+      envSvg.innerHTML = `<rect x="-400" y="-500" width="1800" height="1600" fill="#F5F5F3" />`;
+      charSvg.innerHTML = `
+        <rect x="60" y="138" width="840" height="340" rx="16" fill="#FFFFFF" stroke="#171717" stroke-width="2.5" />
+        ${R.renderActorSVG({ ...cfg, emotion: activeEmo, gesture: activeGes, x: 230, y: 425, angle: 'front' })}
+        <text x="230" y="456" text-anchor="middle" fill="#171717" font-size="13" font-weight="800">FRONT (0°)</text>
+        ${R.renderActorSVG({ ...cfg, emotion: activeEmo, gesture: activeGes, x: 480, y: 425, angle: 'three-quarter', blackNameTag: null })}
+        <text x="480" y="456" text-anchor="middle" fill="#171717" font-size="13" font-weight="800">3/4 VIEW</text>
+        ${R.renderActorSVG({ ...cfg, emotion: activeEmo, gesture: activeGes, x: 730, y: 425, angle: 'side', blackNameTag: null })}
+        <text x="730" y="456" text-anchor="middle" fill="#171717" font-size="13" font-weight="800">SIDE (90°)</text>
+      `;
+      infoContainer.innerHTML = `
+        <div class="km-clipped-card" style="position:absolute; top:14px; left:60px; width:840px; z-index:35; padding:10px 14px;">
+          <div style="display:flex; align-items:center; justify-content:space-between;">
+            <div>
+              <span style="font-family:var(--font-mono); font-size:12px; font-weight:800; color:#2FAA61;">${asset.id}</span>
+              <span class="editable-text-node" contenteditable="true" style="font-size:15px; font-weight:800; color:#171717; margin-left:8px;">${asset.nameKm}</span>
+            </div>
+            <span style="font-size:11.5px; color:#64748B; font-weight:700;">Test 15 Emotions & Poses:</span>
+          </div>
+          <div class="stage-char-switcher" id="stageEmoSwitcher">
+            ${emotions
+              .map((emo) => `<button type="button" class="stage-char-pill ${emo === activeEmo ? 'active' : ''}" data-char-emo="${emo}">${emo}</button>`)
+              .join('')}
+          </div>
+          <div class="stage-char-switcher" id="stageGesSwitcher" style="margin-top:4px;">
+            ${gestures
+              .map((ges) => `<button type="button" class="stage-char-pill ${ges === activeGes ? 'active' : ''}" data-char-ges="${ges}">✋ ${ges}</button>`)
+              .join('')}
+          </div>
+        </div>
+      `;
+
+      infoContainer.querySelectorAll('[data-char-emo]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          state.inspectedCharEmotion = btn.getAttribute('data-char-emo');
+          inspectStudioAsset(asset.id);
+        });
+      });
+      infoContainer.querySelectorAll('[data-char-ges]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          state.inspectedCharGesture = btn.getAttribute('data-char-ges');
+          inspectStudioAsset(asset.id);
+        });
+      });
+    } else {
+      envSvg.innerHTML = `<rect x="-400" y="-500" width="1800" height="1600" fill="#F5F5F3" />`;
+      charSvg.innerHTML = '';
+      infoContainer.innerHTML = `
+        <div style="position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px; padding:24px;">
+          <div class="km-clipped-card" style="min-width:420px; max-width:780px; text-align:center;">
+            <div style="font-family:var(--font-mono); font-size:13px; font-weight:800; color:#2FAA61; margin-bottom:2px;">${asset.id}</div>
+            <div class="editable-text-node" contenteditable="true" style="font-size:18px; font-weight:800; color:#171717;">${asset.nameKm}</div>
+            <div style="font-size:12.5px; color:#64748B; font-weight:600;">${asset.nameEn}</div>
+          </div>
+          <div style="background:#FFFFFF; border:2.5px solid #171717; border-radius:16px; padding:28px 42px; min-width:460px; min-height:240px; display:flex; align-items:center; justify-content:center; box-shadow:0 16px 36px rgba(23,23,23,0.08);">
+            <div style="transform:scale(1.45); transform-origin:center; display:flex; align-items:center; justify-content:center;">
+              ${asset.thumbHtml}
+            </div>
+          </div>
+        </div>
+      `;
     }
   }
 
   function toggleTheatreCaptureMode(forceEnable) {
+    if (state.shotPlaying && !state.autoAdvanceEpisode) {
+      stopShotPlayback();
+    }
     const isNowTheatre =
       typeof forceEnable === 'boolean'
         ? document.body.classList.toggle('theatre-capture-mode', forceEnable)
@@ -2080,12 +3198,34 @@ Build an interactive 2D educational HTML/CSS/SVG scene (${state.aspect} aspect r
       }
     });
 
-    const btnExport = document.getElementById('btnOpenExport');
-    if (btnExport) btnExport.addEventListener('click', openExportModal);
-    const btnCloseExport = document.getElementById('btnCloseExport');
-    if (btnCloseExport) btnCloseExport.addEventListener('click', closeExportModal);
-    const btnCopyExport = document.getElementById('btnCopyExport');
-    if (btnCopyExport) btnCopyExport.addEventListener('click', copyExportTokens);
+    // Left Sidebar Asset Library Search, Category Filter & Back-to-Shot Controls
+    const searchInput = document.getElementById('assetSearchInput');
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        state.assetSearchQuery = e.target.value;
+        renderAssetLibrary();
+      });
+    }
+
+    const filterContainer = document.getElementById('assetFilterTabs');
+    if (filterContainer) {
+      filterContainer.querySelectorAll('.asset-filter-pill').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          state.assetFilterCategory = btn.getAttribute('data-cat') || 'all';
+          filterContainer.querySelectorAll('.asset-filter-pill').forEach((b) => {
+            b.classList.toggle('active', b === btn);
+          });
+          renderAssetLibrary();
+        });
+      });
+    }
+
+    const btnBackToShot = document.getElementById('btnBackToShot');
+    if (btnBackToShot) {
+      btnBackToShot.addEventListener('click', () => {
+        loadShot(state.currentShotIndex, false);
+      });
+    }
 
     // Parametric Rig Sliders
     const bindSlider = (id, valId, prop, suffix = '', isFloat = false, cb = null) => {
@@ -2226,10 +3366,494 @@ Build an interactive 2D educational HTML/CSS/SVG scene (${state.aspect} aspect r
     }
   }
 
+
+  // =========================================================================
+  // 8. DETERMINISTIC HEADLESS CHROMIUM FRAME-STEPPER API & EXPORT MODAL
+  // =========================================================================
+  function smoothstep(edge0, edge1, x) {
+    if (edge1 <= edge0) return x >= edge0 ? 1 : 0;
+    const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));
+    return t * t * (3 - 2 * t);
+  }
+
+  function getExportDeckInfo(deckName) {
+    if (deckName) state.activeDeck = deckName;
+    const shots = getActiveShots()
+      .map((s, idx) => ({
+        index: idx,
+        id: s.id,
+        title: s.title,
+        sceneType: s.sceneType,
+        location: s.location || 'office',
+        bgmMood: s.bgmMood || 'curious',
+        transitionType: s.transitionType || 'wipe',
+        defaultDuration: s.defaultDuration || 8.0,
+        voiceBase: s.voiceBase || null,
+        sfxCues: Array.isArray(s.sfxCues) ? s.sfxCues : []
+      }))
+      .filter((s) => s.sceneType !== 'character-sheet');
+    return {
+      deck: state.activeDeck,
+      shots
+    };
+  }
+
+  function prepareExportShot(opts = {}) {
+    state.isExportMode = true;
+    if (opts.deck) {
+      state.activeDeck = opts.deck;
+    }
+    const aspect = opts.aspect || '16:9';
+    document.body.classList.add('theatre-capture-mode', 'export-render-mode');
+
+    setAspect(aspect);
+    const shotIndex = typeof opts.shotIndex === 'number' ? opts.shotIndex : 0;
+    loadShot(shotIndex, false);
+
+    if (opts.duration && opts.duration > 0.5) {
+      state.shotDuration = opts.duration;
+    }
+
+    // Scale #animationStage to fill exact target export viewport
+    const stage = document.getElementById('animationStage');
+    if (stage) {
+      stage.classList.remove('camera-scene-enter');
+      let baseW = 960;
+      let baseH = 540;
+      if (aspect === '9:16') {
+        baseW = 540;
+        baseH = 960;
+      } else if (aspect === '1:1') {
+        baseW = 760;
+        baseH = 760;
+      }
+      const scaleX = window.innerWidth / baseW;
+      const scaleY = window.innerHeight / baseH;
+      const exactScale = Math.min(scaleX, scaleY);
+      stage.style.width = baseW + 'px';
+      stage.style.height = baseH + 'px';
+      stage.style.transform = 'scale(' + exactScale.toFixed(5) + ')';
+    }
+
+    // Pause all SVG SMIL animations so stepExportFrame can drive them deterministically
+    document.querySelectorAll('#animationStage svg').forEach((svg) => {
+      if (typeof svg.pauseAnimations === 'function') {
+        try {
+          svg.pauseAnimations();
+        } catch (_) {}
+      }
+    });
+
+    const transOverlay = document.getElementById('sceneTransitionOverlay');
+    if (transOverlay) {
+      transOverlay.classList.remove('active-wipe', 'active-iris', 'active-dissolve');
+    }
+
+    return {
+      shotIndex,
+      shotId: getActiveShots()[shotIndex]?.id,
+      duration: state.shotDuration
+    };
+  }
+
+  function applyDeterministicTransitionAndInfographics(shot, elapsedSec, includeEntranceTransition) {
+    // 1. Deterministic Scene Entrance Transition Overlay (0.0s -> 0.85s)
+    const transOverlay = document.getElementById('sceneTransitionOverlay');
+    if (transOverlay) {
+      transOverlay.classList.remove('active-wipe', 'active-iris', 'active-dissolve');
+      const transDur = 0.85;
+      if (includeEntranceTransition && elapsedSec < transDur) {
+        const p = smoothstep(0, transDur, elapsedSec);
+        const tType = shot?.transitionType || 'wipe';
+        const wipeLine = transOverlay.querySelector('.ink-wipe-svg');
+        if (tType === 'dissolve') {
+          transOverlay.style.opacity = String((1 - p).toFixed(3));
+          transOverlay.style.clipPath = 'none';
+          if (wipeLine) wipeLine.style.opacity = '0';
+        } else if (tType === 'iris') {
+          transOverlay.style.opacity = String((1 - p * 0.85).toFixed(3));
+          transOverlay.style.clipPath = 'circle(' + ((1 - p) * 110).toFixed(1) + '% at 50% 50%)';
+          if (wipeLine) wipeLine.style.opacity = '0';
+        } else {
+          // Hand-drawn wavy ink wipe from left to right
+          transOverlay.style.opacity = '1';
+          const insetLeft = (p * 100).toFixed(2);
+          transOverlay.style.clipPath = 'inset(0 0 0 ' + insetLeft + '%)';
+          if (wipeLine) {
+            wipeLine.style.opacity = p < 0.96 ? '1' : '0';
+            wipeLine.style.left = insetLeft + '%';
+          }
+        }
+      } else {
+        transOverlay.style.opacity = '0';
+        transOverlay.style.clipPath = 'none';
+      }
+    }
+
+    // 2. Deterministic Infographic Elements (Zero CSS transition lag)
+    const infoContainer = document.getElementById('infographicContainer');
+    if (!infoContainer) return;
+
+    infoContainer.querySelectorAll('[data-reveal-at]').forEach((el) => {
+      const revealAt = parseFloat(el.getAttribute('data-reveal-at')) || 0;
+      const baseScale = parseFloat(el.dataset.aspectScale || '1');
+      el.style.transition = 'none';
+      if (elapsedSec < revealAt) {
+        el.style.opacity = '0';
+        el.style.transform = 'translateY(12px) scale(' + (baseScale * 0.96).toFixed(3) + ')';
+      } else {
+        const p = smoothstep(revealAt, revealAt + 0.38, elapsedSec);
+        const yPx = ((1 - p) * 12).toFixed(2);
+        const sc = (baseScale * (0.96 + 0.04 * p)).toFixed(3);
+        el.style.opacity = p.toFixed(3);
+        el.style.transform = 'translateY(' + yPx + 'px) scale(' + sc + ')';
+      }
+    });
+
+    infoContainer.querySelectorAll('[data-speak-window]').forEach((el) => {
+      const rawWin = (el.getAttribute('data-speak-window') || '0,0').split(',');
+      const speakStart = parseFloat(rawWin[0]) || 0;
+      const speakEnd = parseFloat(rawWin[1]) || 0;
+      const baseScale = parseFloat(el.dataset.aspectScale || '1');
+      el.style.transition = 'none';
+      if (elapsedSec < speakStart || elapsedSec > speakEnd + 0.22) {
+        el.style.opacity = '0';
+      } else if (elapsedSec <= speakEnd) {
+        const pIn = smoothstep(speakStart, speakStart + 0.28, elapsedSec);
+        el.style.opacity = pIn.toFixed(3);
+        el.style.transform = 'translateY(' + ((1 - pIn) * 8).toFixed(1) + 'px) scale(' + baseScale + ')';
+      } else {
+        const pOut = 1 - smoothstep(speakEnd, speakEnd + 0.22, elapsedSec);
+        el.style.opacity = pOut.toFixed(3);
+      }
+    });
+
+    infoContainer.querySelectorAll('[data-broll-window]').forEach((el) => {
+      const rawWin = (el.getAttribute('data-broll-window') || '0,0').split(',');
+      const winStart = parseFloat(rawWin[0]) || 0;
+      const winEnd = parseFloat(rawWin[1]) || 0;
+      const baseScale = parseFloat(el.dataset.aspectScale || '1');
+      el.style.transition = 'none';
+      if (elapsedSec < winStart || elapsedSec > winEnd + 0.26) {
+        el.style.opacity = '0';
+      } else if (elapsedSec <= winEnd) {
+        const pIn = smoothstep(winStart, winStart + 0.36, elapsedSec);
+        el.style.opacity = pIn.toFixed(3);
+        el.style.transform = 'translateY(' + ((1 - pIn) * 10).toFixed(1) + 'px) scale(' + baseScale + ')';
+      } else {
+        const pOut = 1 - smoothstep(winEnd, winEnd + 0.26, elapsedSec);
+        el.style.opacity = pOut.toFixed(3);
+      }
+    });
+
+    infoContainer.querySelectorAll('.ref-bar-segment').forEach((seg) => {
+      const fillAt = parseFloat(seg.getAttribute('data-fill-at')) || 0.2;
+      const targetStr = seg.getAttribute('data-target-width') || '0%';
+      const targetNum = parseFloat(targetStr) || 0;
+      seg.style.transition = 'none';
+      if (elapsedSec < fillAt) {
+        seg.style.width = '0%';
+      } else {
+        const p = smoothstep(fillAt, fillAt + 1.1, elapsedSec);
+        seg.style.width = (targetNum * p).toFixed(2) + '%';
+      }
+    });
+
+    infoContainer.querySelectorAll('[data-dock-at]').forEach((el) => {
+      const dockAt = parseFloat(el.getAttribute('data-dock-at')) || 999;
+      const baseScale = parseFloat(el.dataset.aspectScale || '1');
+      const dockScaleMult = parseFloat(el.getAttribute('data-dock-scale') || '0.68');
+      const dockX = parseFloat(el.getAttribute('data-dock-x') || '0');
+      const dockY = parseFloat(el.getAttribute('data-dock-y') || '-14');
+      el.style.transition = 'none';
+      if (elapsedSec >= dockAt) {
+        const p = smoothstep(dockAt, dockAt + 0.48, elapsedSec);
+        const curX = (dockX * p).toFixed(1);
+        const curY = (dockY * p).toFixed(1);
+        const curScale = (baseScale * (1 - (1 - dockScaleMult) * p)).toFixed(3);
+        el.style.transformOrigin = 'top left';
+        el.style.transform = 'translate(' + curX + 'px, ' + curY + 'px) scale(' + curScale + ')';
+      }
+    });
+
+    infoContainer.querySelectorAll('.km-check-row[data-check-at]').forEach((row) => {
+      const checkAt = parseFloat(row.getAttribute('data-check-at')) || 0;
+      const box = row.querySelector('.km-check-box');
+      if (elapsedSec >= checkAt) {
+        row.classList.remove('dimmed');
+        row.classList.add('active-check');
+        if (box) box.textContent = '✓';
+      } else {
+        row.classList.add('dimmed');
+        row.classList.remove('active-check');
+        if (box) box.textContent = '';
+      }
+    });
+  }
+
+  function stepExportFrame(elapsedSec, mouthOpenOverride = null, includeEntranceTransition = true) {
+    const shot = getActiveShots()[state.currentShotIndex];
+    if (!shot) return;
+
+    state.shotPlaying = false; // prevent rAF loop from racing with deterministic stepper
+    state.shotElapsed = elapsedSec;
+
+    // 1. Update running Khmer subtitle caption & rolling counters
+    const totalDur = Math.max(4.0, state.shotDuration || shot.defaultDuration || 8.0);
+    const isVoiceWindow = elapsedSec <= totalDur;
+    updateVoiceRunningCaption(shot, elapsedSec, isVoiceWindow);
+    applyCameraFraming(elapsedSec, true);
+    applyDeterministicTransitionAndInfographics(shot, elapsedSec, includeEntranceTransition);
+
+    // 2. Update rolling counter numbers
+    const counterEl = document.getElementById('domCounterNum');
+    if (shot.sceneType === 'ep01-sugar-xray' && counterEl) {
+      const rollStart = 9.0;
+      const rollEnd = 12.6;
+      if (elapsedSec < rollStart) {
+        counterEl.textContent = '10g (2 ស្លាបព្រា)';
+      } else if (elapsedSec <= rollEnd) {
+        const progress = Math.max(0, Math.min(1, (elapsedSec - rollStart) / (rollEnd - rollStart)));
+        const val = Math.floor(10 + (45 - 10) * progress);
+        const spoons = Math.max(2, Math.round(val / 4));
+        counterEl.textContent = val + 'g (' + spoons + ' ស្លាបព្រា)';
+      } else {
+        counterEl.textContent = '45g (11 ស្លាបព្រា)';
+      }
+    }
+
+    // 3. Deterministic Blink & Mouth Open
+    const blinkCycle = elapsedSec % state.blinkInterval;
+    const isBlinking = blinkCycle > (state.blinkInterval - 0.15);
+    let primaryMouthOpen = 0;
+    if (typeof mouthOpenOverride === 'number') {
+      primaryMouthOpen = mouthOpenOverride;
+    } else if (isVoiceWindow) {
+      const syllableWave =
+        Math.sin(elapsedSec * state.mouthCadence * Math.PI) * Math.cos(elapsedSec * 2.3 * Math.PI);
+      primaryMouthOpen = Math.max(0, syllableWave);
+    }
+
+    // 4. Render Characters at exact elapsedSec
+    const charSvgGroup = document.getElementById('characterSvgGroup');
+    if (charSvgGroup && shot.sceneType !== 'character-sheet') {
+      const behindCounterActors = [];
+      const foregroundActors = [];
+      const phase = elapsedSec * 2.6;
+
+      let timelineActorBeat = null;
+      if (Array.isArray(shot.actorBeats) && shot.actorBeats.length > 0) {
+        timelineActorBeat = shot.actorBeats[0];
+        for (let i = 0; i < shot.actorBeats.length; i++) {
+          if (elapsedSec >= shot.actorBeats[i].at) {
+            timelineActorBeat = shot.actorBeats[i];
+          }
+        }
+      }
+
+      shot.actors.forEach((actor, idx) => {
+        const isPrimarySpeaker = idx === shot.actors.length - 1 || shot.actors.length === 1;
+        let beatEmotion = actor.emotion;
+        let beatGesture = actor.gesture;
+
+        if (isPrimarySpeaker && timelineActorBeat) {
+          beatEmotion = timelineActorBeat.emotion || actor.emotion;
+          beatGesture = timelineActorBeat.gesture || actor.gesture;
+        } else if (!isPrimarySpeaker && shot.sceneType === 'ep01-smart-swap' && elapsedSec >= 19.0) {
+          beatEmotion = 'proud';
+          beatGesture = 'present-right';
+        }
+
+        const actorScale = actor.scale ?? 1.0;
+        let actorIsSpeaking = false;
+        if (isVoiceWindow) {
+          if (Array.isArray(actor.speakWindows)) {
+            actorIsSpeaking = actor.speakWindows.some(
+              (win) => elapsedSec >= win[0] && elapsedSec <= win[1]
+            );
+          } else {
+            actorIsSpeaking = isPrimarySpeaker;
+          }
+        }
+
+        const walkInProgress = Math.max(0, Math.min(1, elapsedSec / 1.38));
+
+        const svgStr = window.CharacterRig.renderActorSVG({
+          ...actor,
+          headRadius: Math.round(state.headRadius * actorScale),
+          torsoLength: Math.round(state.torsoLength * actorScale),
+          limbLength: Math.round(state.limbLength * actorScale),
+          gestureAmplitude: state.gestureAmplitude,
+          headTiltOffset: isPrimarySpeaker ? state.headTiltOffset : 0,
+          emotion: beatEmotion,
+          gesture: beatGesture,
+          angle: actor.angle || 'front',
+          mouthOpen: actorIsSpeaking ? primaryMouthOpen : 0,
+          isBlinking,
+          walkInProgress,
+          phase: phase + idx * 0.9
+        });
+
+        if (actor.behindCounter) behindCounterActors.push(svgStr);
+        else foregroundActors.push(svgStr);
+      });
+
+      const activeLoc = shot.location;
+      const counterForegroundSVG =
+        activeLoc === 'shop'
+          ? window.CharacterRig.renderPawnCounterForegroundSVG(
+              shot.sceneType === 'pawn-scale-hybrid',
+              state.scaleCounterText
+            )
+          : '';
+      const showXrayCup = shot.sceneType === 'ep01-sugar-xray' && elapsedSec >= 8.5;
+      const coffeeXrayPropSVG = showXrayCup
+        ? window.CharacterRig.renderIcedCoffeeXrayPropSVG(325, 430)
+        : '';
+
+      charSvgGroup.innerHTML =
+        behindCounterActors.join('') +
+        counterForegroundSVG +
+        coffeeXrayPropSVG +
+        foregroundActors.join('');
+    }
+
+    // 5. Step all SVG SMIL <animateMotion> / <animateTransform> clocks
+    document.querySelectorAll('#animationStage svg').forEach((svg) => {
+      if (typeof svg.setCurrentTime === 'function') {
+        try {
+          svg.pauseAnimations();
+          svg.setCurrentTime(elapsedSec);
+        } catch (_) {}
+      }
+    });
+  }
+
+  function updateExportCliPreview() {
+    const scopeEl = document.getElementById('exportScopeSelect');
+    const aspectEl = document.getElementById('exportAspectSelect');
+    const fpsEl = document.getElementById('exportFpsSelect');
+    const codeEl = document.getElementById('exportCliPreviewCode');
+    if (!scopeEl || !aspectEl || !fpsEl || !codeEl) return;
+
+    const scope = scopeEl.value;
+    const aspect = aspectEl.value;
+    const fps = fpsEl.value;
+    const shotFlag = scope === 'shot' ? ' --shot ' + (state.currentShotIndex + 1) : '';
+    codeEl.textContent =
+      'node export-video.js --deck ' + state.activeDeck + shotFlag + ' --aspect ' + aspect + ' --fps ' + fps;
+  }
+
+  function bindExportModalControls() {
+    const modal = document.getElementById('videoExportModal');
+    const btnOpen = document.getElementById('btnOpenExportModal');
+    const btnClose = document.getElementById('btnCloseExportModal');
+    const btnStart = document.getElementById('btnStartServerExport');
+    const scopeEl = document.getElementById('exportScopeSelect');
+    const aspectEl = document.getElementById('exportAspectSelect');
+    const fpsEl = document.getElementById('exportFpsSelect');
+
+    const openModalFn = () => {
+      if (!modal) return;
+      if (aspectEl) aspectEl.value = state.aspect;
+      updateExportCliPreview();
+      modal.classList.remove('hidden');
+    };
+    ['btnOpenExportModal', 'btnTimelineExportMp4', 'btnHudExportMp4'].forEach((id) => {
+      const btn = document.getElementById(id);
+      if (btn) btn.addEventListener('click', openModalFn);
+    });
+    if (btnClose && modal) {
+      btnClose.addEventListener('click', () => {
+        modal.classList.add('hidden');
+      });
+    }
+    [scopeEl, aspectEl, fpsEl].forEach((el) => {
+      if (el) el.addEventListener('change', updateExportCliPreview);
+    });
+
+    if (btnStart) {
+      btnStart.addEventListener('click', async () => {
+        const progBox = document.getElementById('exportProgressBox');
+        const statusTxt = document.getElementById('exportStatusText');
+        const pctTxt = document.getElementById('exportPercentText');
+        const fillEl = document.getElementById('exportProgressBarFill');
+        const resBox = document.getElementById('exportResultActions');
+        const fileLbl = document.getElementById('exportOutputFileLabel');
+        const dlLink = document.getElementById('exportDownloadLink');
+
+        if (progBox) progBox.classList.remove('hidden');
+        if (resBox) resBox.classList.add('hidden');
+        btnStart.disabled = true;
+        btnStart.textContent = '⏳ Rendering MP4...';
+
+        const payload = {
+          deck: state.activeDeck,
+          shot: scopeEl?.value === 'shot' ? state.currentShotIndex + 1 : null,
+          aspect: aspectEl?.value || state.aspect,
+          fps: parseInt(fpsEl?.value || '30', 10)
+        };
+
+        try {
+          const res = await fetch('/api/export/start', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          const data = await res.json();
+          if (!res.ok || !data.jobId) {
+            throw new Error(data.error || 'Failed to start export job');
+          }
+
+          const pollTimer = setInterval(async () => {
+            try {
+              const stRes = await fetch('/api/export/status?jobId=' + encodeURIComponent(data.jobId));
+              const st = await stRes.json();
+              if (statusTxt) statusTxt.textContent = st.message || 'Rendering...';
+              if (pctTxt) pctTxt.textContent = (st.percent || 0) + '%';
+              if (fillEl) fillEl.style.width = (st.percent || 0) + '%';
+
+              if (st.status === 'done') {
+                clearInterval(pollTimer);
+                btnStart.disabled = false;
+                btnStart.textContent = '🚀 Start MP4 Render';
+                if (statusTxt) statusTxt.textContent = '✅ Export Complete!';
+                if (resBox) resBox.classList.remove('hidden');
+                if (fileLbl) fileLbl.textContent = st.outputFile;
+                if (dlLink) {
+                  dlLink.href = '/' + st.outputFile;
+                  dlLink.download = st.outputFile.split('/').pop();
+                }
+              } else if (st.status === 'error') {
+                clearInterval(pollTimer);
+                btnStart.disabled = false;
+                btnStart.textContent = '🚀 Start MP4 Render';
+                if (statusTxt) statusTxt.textContent = '❌ Error: ' + (st.error || 'Export failed');
+              }
+            } catch (_) {}
+          }, 600);
+        } catch (err) {
+          btnStart.disabled = false;
+          btnStart.textContent = '🚀 Start MP4 Render';
+          if (statusTxt) statusTxt.textContent = '❌ ' + err.message;
+        }
+      });
+    }
+  }
+
+
   function init() {
     renderShotTabs();
+    renderAssetLibrary();
     bindControls();
+    bindExportModalControls();
     updateCalibrationReadouts();
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('exportMode') === '1') {
+      state.isExportMode = true;
+      document.body.classList.add('theatre-capture-mode', 'export-render-mode');
+      return;
+    }
     loadShot(0, false);
     resizeStageToFit();
     requestAnimationFrame(updateActorFrame);
@@ -2241,7 +3865,10 @@ Build an interactive 2D educational HTML/CSS/SVG scene (${state.aspect} aspect r
     setSheetCharacter,
     playSfxWhoosh,
     playSfxCounterTicks,
-    playSfxChime
+    playSfxChime,
+    getExportDeckInfo,
+    prepareExportShot,
+    stepExportFrame
   };
 })();
 

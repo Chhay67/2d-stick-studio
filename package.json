@@ -1,0 +1,16 @@
+{
+  "name": "khmer-2d-stick-studio",
+  "version": "2.0.0",
+  "description": "Khmer 2D Educational Animation Studio — Master Design System v2.0",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "export:ep01": "node export-video.js --deck ep01 --aspect 16:9",
+    "export:shot": "node export-video.js --deck ep01 --shot 1 --aspect 16:9",
+    "export:tiktok": "node export-video.js --deck ep01 --aspect 9:16"
+  },
+  "dependencies": {
+    "ffmpeg-static": "^5.2.0",
+    "puppeteer-core": "^24.0.0"
+  }
+}

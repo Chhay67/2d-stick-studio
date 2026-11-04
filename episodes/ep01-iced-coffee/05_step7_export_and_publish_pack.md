@@ -1,20 +1,41 @@
-# Episode 01 — Step 7: Final 1080p Capture & Multi-Platform Publish Package (`ep01-iced-coffee`)
+# Episode 01 — Step 7: Final 1080p MP4 Export & Multi-Platform Publish Package (`ep01-iced-coffee`)
 
-**Status:** ✅ **STEP 7 READY FOR CAPTURE & PUBLISH**  
-**Total Master Audio Duration:** `259.6 seconds` (`04:20`) across `shot_01.wav` – `shot_08.wav`  
+**Status:** ✅ **STEP 7 READY FOR MP4 EXPORT & PUBLISH**  
+**Total Master Audio Duration:** `259.6 seconds` (`04:20`) across `shot_01.wav` – `shot_08.wav` (+ `550ms` inter-shot transition breathing pauses)  
 **Signature Voice-Over:** `VOICE-NARRATOR-001` (Khmer 2D Studio Storyteller)
 
 ---
 
-## 1. How to Capture the Final 1080p Master Video (`16:9`, `9:16`, `1:1`)
+## 1. How to Export the Final 1080p Master MP4 Video (`16:9`, `9:16`, `1:1`)
 
+### Method A — 1-Click Export in Studio UI (`📥 Export MP4`)
 1. Open **`http://localhost:8080`** in Chrome or Edge.
-2. Click **`🎥 Theatre Capture (Step 7)`** in the top studio header:
-   - This automatically hides all sidebars, toolbars, and dashed safe-zone overlays, switches the background to pure black (`#000000`), enters full-screen mode, and scales the animation stage cleanly to fill your `1920×1080` screen.
-3. Start your screen recorder (**OBS Studio**, **Windows `Win + Alt + R`**, or **macOS Screen Recording** with system/desktop audio enabled).
-4. Hover the top-right corner to reveal the subtle Theatre HUD and click **`🎬 Play Full Episode`**:
-   - The engine will play **`Shot 01` → `Shot 08`** continuously (`04:20` total) with real-time WebAudio RMS lip-sync, staged infographic reveals, character emotion transitions, and synchronized SFX cues.
-5. Press **`ESC`** (or click **`✕ Exit Capture`**) when finished.
+2. Click the **`📥 Export MP4`** button in the Top Header, Bottom Timeline Bar, or Theatre HUD.
+3. Select:
+   - **Target Scope:** `Full Episode (All Story Shots + Transitions)` (or `Current Active Shot Only` for a single shot).
+   - **Aspect Ratio & Resolution:** `16:9 (1920 × 1080)`, `9:16 (1080 × 1920)` for TikTok/Reels, or `1:1 (1080 × 1080)` for Facebook.
+   - **Frame Rate:** `30 FPS` (fast render) or `60 FPS` (master render).
+4. Click **`🚀 Start MP4 Render`**. Once complete, click **`⬇ Download MP4`** (all rendered files are also saved inside the `exports/` folder).
+
+### Method B — Command-Line Deterministic Exporter (`node export-video.js`)
+Run any of these commands directly in your terminal:
+```powershell
+# Export Single Shot (e.g. Shot 01 in 16:9 at 30fps)
+node export-video.js --deck ep01 --shot 1 --aspect 16:9 --fps 30
+
+# Export Full Episode 01 Master (1920x1080 60fps H.264 MP4)
+node export-video.js --deck ep01 --aspect 16:9 --fps 60
+
+# Export TikTok / Reels Vertical Master (1080x1920 30fps H.264 MP4)
+node export-video.js --deck ep01 --aspect 9:16 --fps 30
+
+# Export Facebook Square Master (1080x1080 30fps H.264 MP4)
+node export-video.js --deck ep01 --aspect 1:1 --fps 30
+```
+
+### Method C — Live Full-Screen Theatre Capture (`🎥 Theatre Capture`)
+1. Click **`🎥 Theatre Capture`** in the top studio header to enter clean full-screen mode (`#000000` borderless frame).
+2. Hover the top-right corner to reveal the Theatre HUD and click **`🎬 Play Full Episode`** while recording with OBS Studio.
 
 ---
 
@@ -43,7 +64,7 @@
 
 ### Full YouTube & Facebook Description (Copy & Paste)
 ```text
-តើអ្នកធ្លាប់ឆ្ងល់ទេថា ហេតុអ្វីបានជាផឹកកាហ្វេទឹកដោះគោទឹកកកផ្អែមៗពេលព្រឹកហើយ មានអារម្មណ៍ថាស្វាងភ្លាមៗ ប៉ុន្តែพอដល់ម៉ោង 2 រសៀល បែរជាងងុយគេង ហត់នឿយ និងពិបាកផ្ដោតអារម្មណ៍ទៅវិញ?
+តើអ្នកធ្លាប់ឆ្ងល់ទេថា ហេតុអ្វីបានជាផឹកកាហ្វេទឹកដោះគោទឹកកកផ្អែមៗពេលព្រឹកហើយ មានអារម្មណ៍ថាស្វាងភ្លាមៗ ប៉ុន្តែដល់ម៉ោង 2 រសៀល បែរជាងងុយគេង ហត់នឿយ និងពិបាកផ្ដោតអារម្មណ៍ទៅវិញ?
 
 នៅក្នុងវីដេអូគំនូរជីវចលអប់រំ 2D នេះ យើងនឹងតាមដានរឿងរ៉ាវរបស់ «តារា» និងបកស្រាយតាមបែបវិទ្យាសាស្ត្រអំពី៖
 ✅ កម្រិតស្ករពិតប្រាកដក្នុងកាហ្វេទឹកដោះគោទឹកកក 1 កែវ (45g ឬ 11 ស្លាបព្រាកាហ្វេ) ធៀបនឹងកម្រិតសុវត្ថិភាពរបស់អង្គការសុខភាពពិភពលោក (WHO 25g)
@@ -66,11 +87,11 @@
 
 ---
 
-## 3. TikTok / Reels / Shorts (`9:16` Vertical Mode) — 3 Ready-to-Cut Highlights
+## 3. TikTok / Reels / Shorts (`9:16` Vertical Mode) — 3 Ready-to-Export Highlights
 
-Switch the studio header (or Theatre HUD) to **`9:16 TikTok`** to record these 3 high-retention vertical clips:
+Export individual vertical shots (`--aspect 9:16`) or full vertical episode using `📥 Export MP4` or `node export-video.js`:
 
-| Clip # | Shots to Record | Duration | Vertical Hook Title (Khmer) |
+| Clip # | Shots to Export | Duration | Vertical Hook Title (Khmer) |
 | :--- | :--- | :--- | :--- |
 | **Short 1** | `Shot 01` + `Shot 03` | `61.9s` | **«កាហ្វេទឹកកកផ្អែម ១ កែវ មានស្ករដល់ទៅ ១១ ស្លាបព្រា?! 😱☕»** |
 | **Short 2** | `Shot 04` + `Shot 05` | `69.8s` | **«ហេតុអ្វីផឹកកាហ្វេហើយ ម៉ោង ២ រសៀលបែរជាងងុយគេងខ្លាំង? 📉😴»** |
@@ -79,5 +100,5 @@ Switch the studio header (or Theatre HUD) to **`9:16 TikTok`** to record these 3
 ---
 
 ## 4. YouTube Thumbnail Brief (`16:9` — `1920×1080`)
-- **Source Frame:** Open **`Shot 03 • X-Ray ស្ករ 45g`** in `16:9` mode, click **`🔤 Clean Plate: ON`**, and take a screenshot of **Dara (`surprised` emotion) + Giant X-Ray Iced Coffee Cup Prop + `45g (11 ស្លាបព្រា)` Coral Bar**.
+- **Source Frame:** Open **`Shot 03 • X-Ray ស្ករ 45g`** in `16:9` mode and capture **Dara (`surprised` emotion) + Giant X-Ray Iced Coffee Cup Prop + `45g (11 ស្លាបព្រា)` Coral Bar**.
 - **Big Thumbnail Text (3 Words Max):** `ស្ករ 11 ស្លាបព្រា?!` (Gold `#EABF42` & Coral `#FA604E` badge with `#171717` outline).

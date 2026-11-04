@@ -3,17 +3,18 @@ name: stick-scene-builder
 description: >-
   Use this skill when building or modifying HTML/CSS/JS 2D stick-figure animation scenes,
   adding new SVG props to assets/props/, adding floating infographic elements to assets/elements/,
-  or wiring episode shot timelines in engine/scene-player.js and episodes/epXX/.
+  updating the Left Sidebar 54-Asset Library & Right Sidebar Shot Inspector, or wiring episode shot
+  timelines and deterministic MP4 export in engine/scene-player.js, episodes/epXX/, and export-video.js.
 ---
 
-# 2D Stick-Figure Scene & Asset Builder Skill
+# 2D Stick-Figure Scene, Asset Library & Deterministic Exporter Skill
 
-Follow these engineering standards whenever creating or updating 2D scenes, props, or infographic elements in Antigravity.
+Follow these engineering standards whenever creating or updating 2D scenes, props, infographic elements, or episode timelines in Antigravity.
 
 ## 1. Three-Layer DOM/SVG Architecture + B-Roll & Scene Transitions
 All scenes inside `#animationStage` (`960×540` base coordinate system, responsive across `16:9`, `9:16`, and `1:1`) must separate:
 1. **Layer 1 (`.layer-environment` — `z-index: 5`):** SVG location, ambient background world motion (`renderAmbientBackgroundMotionSVG` — passing vehicles outside windows/streets, ticking wall clocks), and background/mid-ground props rendered via `CharacterRig.renderLocationSVG(locationId, options)`.
-2. **Layer 2 (`.layer-characters` — `z-index: 15`):** SVG actors rendered at 60fps via `CharacterRig.renderActorSVG(config)` (driven by `shot.actorBeats` keyframes, `walkInProgress` entrance stride during `0.0s–1.05s`, and `'jump-celebrate'` with golden sparkle stars `✨`) + foreground counter/hero props with wavy meniscus fills and curved dashed particle streams (`.km-dashed-stream`).
+2. **Layer 2 (`.layer-characters` — `z-index: 15`):** SVG actors rendered at 60fps via `CharacterRig.renderActorSVG(config)` (driven by `shot.actorBeats` keyframes, `walkInProgress` entrance stride during `0.0s–1.38s`, and `'jump-celebrate'` with golden sparkle stars `✨`) + foreground counter/hero props with wavy meniscus fills and curved dashed particle streams (`.km-dashed-stream`).
 3. **Layer 3 (`.layer-infographics` — `z-index: 25` — "គិតមើល" Info-Box Display System):**
    - **Signature "គិតមើល" Components:**
      - `.km-key-tracker` + `.km-key-row` + `.km-key-pill` (Top-left key/icon chapter progress tracker `🔑1..7` + yellow active chapter pill).
@@ -28,15 +29,16 @@ All scenes inside `#animationStage` (`960×540` base coordinate system, responsi
    - **Intro & Outro Cards (`.director-intro-card` / `.director-outro-card`):** Animated Episode Title Card at the start of `Shot 01` and Transformation + Subscribe CTA Card at the end of the final shot.
    - **Voice-Dependent Running Subtitle Bar (`.stage-caption-bar` — `z-index: 35`):** Visible **ONLY when voice sound is actively playing (`.voice-active`)** and hidden (`opacity: 0`) when voice sound stops. Runs progressively word-by-word (`.cap-token.spoken`, `.cap-token.active-word`, `.cap-token.upcoming` + `.caption-voice-progress`) across each `shot.captionBeats` window.
 4. **Cinematic Scene Transitions & Intra-Shot Camera Zoom/Pan (`#sceneTransitionOverlay` + `shot.cameraBeats`):**
-   - Every shot defines `directorSection` (`INTRO`, `STORY`, `B-ROLL`, `EXPLAINER`, `HOW-TO`, `OUTRO`), `transitionType` (`wipe` — off-white paper wipe led by a vertical hand-drawn `#171717` wavy ink line `.ink-wipe-svg`, `iris`, or `dissolve`), `bgmMood` (`curious`, `story`, `investigation`, `uplifting`), and `cameraBeats` (`[{ at, zoom, panX, panY }]` for smooth intra-shot camera zoom-in, zoom-out, and pan).
+   - Every shot defines `directorSection` (`INTRO`, `STORY`, `B-ROLL`, `EXPLAINER`, `HOW-TO`, `OUTRO`), `transitionType` (`1.18s` `wipe` — off-white paper wipe led by a vertical hand-drawn `#171717` wavy ink line `.ink-wipe-svg`, `1.10s` `iris`, or `1.02s` `dissolve`), `bgmMood` (`curious`, `story`, `investigation`, `uplifting`), and `cameraBeats` (`[{ at, zoom, panX, panY }]`).
+   - Hold a `550ms` natural breathing pause at the end of each shot before advancing to the next shot (`handleShotPlaybackFinished`), with a `640ms` transition lead-in (`scheduleAutoPlayAfterTransition`).
 
-## 2. Adding New Props & Floating Elements
-- **New Foreground Props:**
-  - Use `#171717` primary stroke (`2.2px–3.0px`), flat semantic/neutral fills (`#E6E9EF`, `#FFFFFF`, `#CBD5E1`, `#8C6239`, `#1E2638`), and register the prop in [props_catalog.json](../../../assets/props/props_catalog.json).
-- **New Floating Infographic Elements:**
-  - Float elements directly in negative space (like `.ref-calendar-badge`, `.ref-envelope-block`, `.ref-salary-bar-group`, `.ref-speech-bubble`).
-  - Mark every Khmer text label and number node with `class="editable-text-node" contenteditable="true"` so post-production editing and the **Clean Plate Toggle** work automatically.
-  - Register new elements in [elements_catalog.json](../../../assets/elements/elements_catalog.json).
+## 2. Left Sidebar Visual Asset Library (`54+` Items) & Right Sidebar Shot Inspector
+Whenever adding new props, floating infographic elements, B-roll items, or cast characters:
+1. **Register in `getStudioAssetsCatalog()` ([engine/scene-player.js](../../../engine/scene-player.js)):**
+   - Assign a unique prefixed ID (`elem:...`, `prop:...`, `item:...`, `char:...`, `loc:...`), Khmer & English names, and a live `thumbHtml` preview so it appears in the scrollable Left Sidebar (`#leftAssetLibraryList`) with a 1-click **`📋 Copy ID`** button.
+   - Map which shots use the asset in `ASSET_SHOT_USAGE` so clickable **`Shot XX`** jump badges appear on the card and in the Right Sidebar's **Card 1 (`Active Shot & Used Assets`)**.
+2. **Preserve Deterministic Frame-Stepping Compatibility ([export-video.js](../../../export-video.js)):**
+   - Any new timed DOM attribute or animation added to `applyInfographicTimelineState(elapsed, isPlaying)` must also be mirrored in `applyDeterministicTransitionAndInfographics(shot, elapsedSec, includeEntranceTransition)` inside [engine/scene-player.js](../../../engine/scene-player.js) so Headless Chromium (`prepareExportShot` / `stepExportFrame`) renders every frame identically during `1080p` `.mp4` exports.
 
 ## 3. Calibrated Default Tokens
 - `--stroke-width: 3.5px` (`stroke-linecap: round`, `stroke-linejoin: round`)

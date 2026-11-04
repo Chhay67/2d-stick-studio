@@ -1,6 +1,6 @@
 # Episode Production Workflow & Working Rules (SOP v2.0)
 
-This document defines the step-by-step production pipeline and approval gates between **You (Producer/Reviewer)**, **Gemini (Researcher, Writer & Director)**, **Google AI Studio (Voice & SFX Generation)**, and **Antigravity (HTML/CSS/JS 2D Animation Engine)**.
+This document defines the step-by-step production pipeline and approval gates between **You (Producer/Reviewer)**, **Gemini (Researcher, Writer & Director)**, **Google AI Studio (Voice & SFX Generation)**, and **Antigravity (HTML/CSS/JS 2D Animation Engine & Deterministic MP4 Exporter)**.
 
 ---
 
@@ -16,11 +16,11 @@ flowchart TD
     G2 -- Revise --> S2
     S3 --> G3{"Gate 3:<br/>Approve Khmer Script?"}
     G3 -- Yes --> S4["STEP 4: Voice & SFX Production<br/>(Google AI Studio Prompts -> shot_XX.wav + SFX Cues)"]
-    G3 -- Yes (Parallel Preview) --> S5["STEP 5: Antigravity HTML/CSS/JS Scene Build<br/>(Build in Chapter Batches of 8–12 Shots)"]
+    G3 -- Yes (Parallel Preview) --> S5["STEP 5: Antigravity HTML/CSS/JS Scene Build<br/>(Build in Chapter Batches + Register in 54-Asset Left Panel)"]
     S4 --> S5
     S5 --> G5{"Gate 5:<br/>Visual & Lip-Sync QA"}
-    G5 -- Tweak Timing/Acting --> S5
-    G5 -- Approved --> S6["STEP 6: Final 1080p Capture & Post-Edit<br/>(16:9 YouTube/FB + 9:16 TikTok/Reels Clips)"]
+    G5 -- Tweak via Asset ID --> S5
+    G5 -- Approved --> S6["STEP 7: Deterministic 1080p MP4 Export<br/>(📥 Export MP4 Button / node export-video.js -> 16:9, 9:16, 1:1)"]
 ```
 
 ---
@@ -40,9 +40,9 @@ flowchart TD
 - **Input:** Approved Chapter Outline from Step 1.
 - **Gemini & Antigravity's Task:**
   - Design **1–3 Episode-Specific Characters** (Name in Khmer, Role, Minimalist vs. Outfitted torso, Hair, Wardrobe Accent Color, Voice ID `VOICE-CAST-01..03`).
-  - Render the interactive **Episode Character Sheet** (`Front 0°`, `3/4 View`, `Side 90°` + core expressions + episode poses).
-  - Select the **2–4 Locations** (from our 12 reusable locations) and define any **Hero Props** needed for the episode.
-- **Gate 2 Rule:** *Lock character designs and hero props once in Step 2 so proportions, outfits, and colors remain 100% identical across all 40–60 shots.*
+  - Render the interactive **Episode Character Sheet** (`Front 0°`, `3/4 View`, `Side 90°` + core expressions + episode poses) and register the cast in the **Left Sidebar Asset Library (`char:...`)**.
+  - Select the **2–4 Locations** (from our 12 reusable locations) and define any **Hero Props** (`prop:...`) needed for the episode.
+- **Gate 2 Rule:** *Lock character designs and hero props once in Step 2 so proportions, outfits, and colors remain 100% identical across all shots.*
 
 ---
 
@@ -56,11 +56,11 @@ flowchart TD
   5. **`OUTRO` (Transformation Payoff, Golden Takeaway & Subscribe/Share CTA)**
 - **Working Batch Size & Narrative Depth:** We work **Chapter by Chapter** so review stays focused, writing **rich, complete spoken Khmer narration (`2–4` full sentences per shot)** that thoroughly explains the story, mechanism, and human impact without rushing.
 - **Every Shot Specification Includes:**
-  1. **Shot ID, Director Section, Mode & Transition:** `directorSection` (`INTRO`, `STORY`, `B-ROLL`, `EXPLAINER`, `HOW-TO`, `OUTRO`), Mode (`STORY`, `EXPLAINER`, `HYBRID`), Camera Framing (`Wide`, `Medium`, `Close-Up`), and Scene Transition (`cinematic-wipe`, `iris-zoom`, `slide-push`, `cross-dissolve`).
+  1. **Shot ID, Director Section, Mode & Transition:** `directorSection` (`INTRO`, `STORY`, `B-ROLL`, `EXPLAINER`, `HOW-TO`, `OUTRO`), Mode (`STORY`, `EXPLAINER`, `HYBRID`), Camera Framing (`Wide`, `Medium`, `Close-Up`), and Scene Transition (`wipe` — `1.18s` wavy ink wipe, `iris` — `1.10s`, `dissolve` — `1.02s`).
   2. **Three-Layer Visuals + B-Roll Cutaway:**
      - `ENVIRONMENT`: Location ID + background/foreground props.
-     - `CHARACTER`: Actor ID, Angle (`front`/`3-4`/`side`), Emotion (`actorBeats` from the **15-Emotion Matrix**), and Motion/Gesture (`point`, `walk`, `sit`, `sad-droop`, `open-welcome`, etc.).
-     - `EXPLANATION + B-ROLL`: Floating bar/icon/speech bubble layout (`data-reveal-at`) + **Animated 2D B-Roll Cutaway Window** (`data-broll-window="start,end"`) so visual interest stays high throughout the shot.
+     - `CHARACTER`: Actor ID, Angle (`front`/`3-4`/`side`), Emotion (`actorBeats` from the **15-Emotion Matrix**), and Motion/Gesture (`point`, `walk`, `sit`, `sad-droop`, `open-welcome`, `jump-celebrate`, etc.).
+     - `EXPLANATION + B-ROLL`: Floating "គិតមើល" info cards (`data-reveal-at`, `data-dock-at`) + **Animated 2D B-Roll Cutaway Window** (`data-broll-window="start,end"`) so visual interest stays high throughout the shot.
   3. **Dual Khmer Script Columns & 3-Stem Sound Design:**
      - **Column A — Visual Subtitle & Labels (`captionBeats`):** Crisp 1–2 line Khmer subtitle per sentence + exact digits (`$300`, `70-85%`).
      - **Column B — Google AI Studio TTS Script:** Natural spoken Khmer with numbers/symbols spelled out in Khmer words (`បីរយដុល្លារ`, `ចិតសិបទៅប៉ែតសិបប្រាំភាគរយ`) and breath pauses (`...`, `។`).
@@ -73,34 +73,47 @@ flowchart TD
 - **Input:** Approved Shot Script from Step 3.
 - **Unified Studio Voice Rule (`VOICE-NARRATOR-001`):**
   - By default, all episodes and all shots use **one unique, custom-designed vocal persona (`VOICE-NARRATOR-001` — Khmer 2D Studio Narrator)** created once in **Google AI Studio Voice Design (`gemini-3.8-flash-tts`)**, with situational `[STYLE]` tags steering emotional shifts across hooks, character quotes, warnings, and summaries.
-  - Separate cast voices (`VOICE-CAST-01..03`) are optional and only used if you explicitly request multi-speaker dialogue.
-- **Gemini's Task:** Output clean, ready-to-copy **Google AI Studio Voice Prompt Blocks** tagged with `VOICE-NARRATOR-001` plus situational `[STYLE]` delivery notes.
 - **Your Task in Google AI Studio:**
-  - Generate the voice audio using your saved `VOICE-NARRATOR-001` voice and save as `episodes/epXX/audio/voice/shot_01.wav` (or `.mp3`), `shot_02.wav`, etc. (or `chapter_01.wav`..`chapter_05.wav`).
+  - Generate the voice audio using your saved `VOICE-NARRATOR-001` voice and save as `episodes/epXX/audio/voice/shot_01.wav` (or `.mp3`), `shot_02.wav`, etc.
 - **Gate 4 Rule (Audio-Driven Timing):**
-  - *Before audio files exist:* The HTML scene player uses estimated reading duration (e.g., `6.5s`) so you can preview animations immediately.
-  - *Once `shot_XX.wav` is added:* The HTML scene player automatically locks the shot's duration and lip-sync window to the exact length of `shot_XX.wav`!
+  - *Before audio files exist:* The HTML scene player uses estimated reading duration (`defaultDuration`) so you can preview animations immediately.
+  - *Once `shot_XX.wav` is added:* Both the live HTML scene player and the deterministic MP4 exporter (`export-video.js`) automatically lock the shot's duration and lip-sync envelope to the exact length and waveform of `shot_XX.wav`!
 
 ---
 
-### STEP 5 — Antigravity HTML/CSS/JS Scene Build (`episodes/epXX/index.html`)
+### STEP 5 — Antigravity HTML/CSS/JS Scene Build (`episodes/epXX/scenes.js`)
 - **Input:** Approved Shot Script (and `.wav` files when ready).
 - **Antigravity's Task:**
-  - Build the playable HTML/CSS/JS scene show in **Chapter Batches (8–12 shots at a time)**.
-  - Program intra-shot animation beats (e.g., at `t = 0.0s` character walks in; at `t = 1.2s` calendar badge pops in with `sfx:pop_soft`; at `t = 2.5s` salary bar fills to `81%` with `sfx:draw_line`; at `t = 4.5s` coral pill `នៅសល់តិច` triggers with `sfx:alert_coral`).
-- **Gate 5 Rule:** *Every shot's Khmer text and numbers are live editable HTML/SVG DOM nodes (`contenteditable="true"`) with a 1-click **Clean Plate Toggle** in case you prefer adding final Khmer typography in your video editor.*
+  - Build the playable HTML/CSS/JS scene show in **Chapter Batches (`8–12` shots at a time)**.
+  - Register all episode elements (`elem:...`), props (`prop:...`), B-Roll items (`item:...`), cast (`char:...`), and shot usage (`ASSET_SHOT_USAGE`) in the **Left Sidebar Asset Library** (`engine/scene-player.js`) so every asset can be inspected individually and referenced by ID (`📋 Copy ID`).
+  - Wire the **Right Sidebar Active Shot Inspector** (`1. Active Shot & Used Assets`, `2. Khmer Subtitle Beats`, `3. Voice-Over VOICE-NARRATOR-001`).
 
 ---
 
-### STEP 6 — Visual & Lip-Sync QA Checklist
-Before marking a chapter finished, we verify:
-1. **No Style Drift:** Same round head radius (`34px`), stroke width (`3.5px`), and outfit colors across all shots.
-2. **Coordinated Emotion & Gated Character Lip-Sync (`actor.speakWindows`):** Face (brows + eyes + mouth) and body posture match the spoken emotional beat. Character mouth lip-sync (`mouthOpen`) and character dialog info boxes (`.ref-speech-bubble` with `data-speak-window="start,end"`) must **only activate during the exact time window when that character speaks (`start <= elapsed <= end` while voice plays)** and hide (`opacity: 0`) when the character finishes speaking or playback stops.
-3. **Voice-Dependent Running Subtitle Caption (`#stageCaptionText`):** The bottom Khmer subtitle bar (`#3B3B3B` pill) must **only be visible while voice sound is actively playing (`.voice-active`)**—never static when audio is stopped—and must progressively highlight spoken words (`.cap-token.spoken` / `.cap-token.active-word` / `.cap-token.upcoming` + `.caption-voice-progress` bar) across each `captionBeat`.
-4. **Varied Graphic Placement:** Consecutive `HYBRID` shots vary their visual layout (top-right icons, horizontal split bar, speech bubble, counter prop scale, etc.).
+### STEP 6 — Visual & Lip-Sync QA Checklist (`http://localhost:8080`)
+Before exporting final MP4 files, verify:
+1. **Direct Asset Inspection & Refinement:** Click any item in the Left Sidebar (`54+` Assets) to inspect it on stage. Click **`📋 Copy ID`** on any element, prop, or character and tell Antigravity what to adjust.
+2. **Coordinated Emotion & Gated Character Lip-Sync (`actor.speakWindows`):** Character mouth lip-sync (`mouthOpen`) and character dialog info boxes (`.ref-speech-bubble` with `data-speak-window="start,end"`) must **only activate during the exact time window when that character speaks (`start <= elapsed <= end` while voice plays)** and hide (`opacity: 0`) when the character finishes speaking or playback stops.
+3. **Voice-Dependent Running Subtitle Caption (`#stageCaptionText`):** The bottom Khmer subtitle bar (`#3B3B3B` pill) must **only be visible while voice sound is actively playing (`.voice-active`)** and must progressively highlight spoken words across each `captionBeat`.
+4. **Unhurried Scene-to-Scene Transitions:** Each shot holds a `550ms` natural breathing pause at the end of the voice track before triggering the `1.18s` wavy ink wipe (`1.10s` iris / `1.02s` dissolve) into the next shot.
 
 ---
 
-### STEP 7 — Final Capture & Multi-Platform Delivery
-- **YouTube & Facebook (5–10 Min Full Episode):** Play in `16:9` (`1920×1080`) full-screen theatre mode with auto-advance across all shots + synced voice/SFX.
-- **TikTok / Reels / Shorts (60–90 Sec Highlights):** Switch the player to `9:16` vertical mode or export standalone chapter highlights.
+### STEP 7 — Deterministic 1080p MP4 Export & Multi-Platform Delivery
+- **Option A — 1-Click Studio UI Exporter (`📥 Export MP4`):**
+  1. Click **`📥 Export MP4`** in the Top Header, Bottom Timeline Bar, or Theatre HUD at `http://localhost:8080`.
+  2. Choose **Current Active Shot Only** (for fast QA) or **Full Episode (All Story Shots + Transitions)**.
+  3. Select Aspect Ratio (`16:9` `1920×1080`, `9:16` `1080×1920` TikTok, or `1:1` `1080×1080` Facebook) and Frame Rate (`30 FPS` or `60 FPS`).
+  4. Click **`🚀 Start MP4 Render`** and click **`⬇ Download MP4`** when complete (files are also saved to `exports/`).
+- **Option B — Command-Line Exporter (`export-video.js`):**
+  ```powershell
+  # Export single shot
+  node export-video.js --deck ep01 --shot 1 --aspect 16:9 --fps 30
+
+  # Export full episode in 1080p60 (16:9 YouTube/Facebook)
+  node export-video.js --deck ep01 --aspect 16:9 --fps 60
+
+  # Export vertical 9:16 TikTok/Reels master
+  node export-video.js --deck ep01 --aspect 9:16 --fps 30
+  ```
+- **Option C — Live Theatre Capture (`🎥 Theatre Capture`):** Full-screen black-frame playback for live OBS screen recording if desired.

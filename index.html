@@ -22,10 +22,10 @@
       </div>
       <div>
         <div class="brand-title">
-          <span>ANTIGRAVITY KHMER 2D ANIMATION STUDIO</span>
-          <span class="brand-badge">UNIFIED MASTER v2.0</span>
+          <span>KHMER 2D ANIMATION STUDIO</span>
+          <span class="brand-badge">MASTER v2.0</span>
         </div>
-        <div class="brand-subtitle">Reference In-World Graphics • 15 Emotions • Parametric Rig • 8s Timeline • WebAudio RMS Lip-Sync</div>
+        <div class="brand-subtitle">54 Visual Assets • 15 Emotions • Voice-Synced Captions & B-Roll Cutaways</div>
       </div>
     </div>
 
@@ -37,20 +37,22 @@
         <button id="btn-aspect-1-1" class="seg-btn" type="button">1:1 Facebook</button>
       </div>
 
-      <span id="currentModeBadge" class="brand-badge" style="font-size:11px; padding:5px 10px;">MODE: STORY</span>
+      <span id="currentModeBadge" class="brand-badge" style="font-size:11px; padding:5px 10px;">MODE: HYBRID</span>
 
       <button id="btnToggleBgm" class="btn-action" type="button" style="border-color:#2FAA61; color:#4ADE80;">🎵 BGM: ON</button>
       <button id="btnToggleSafeZones" class="btn-action" type="button">📐 Safe Zones: ON</button>
-      <button id="btnToggleCleanPlate" class="btn-action" type="button">🔤 Khmer Text: ON</button>
-      <button id="btnTheatreCapture" class="btn-action primary" type="button">🎥 Theatre Capture (Step 7)</button>
-      <button id="btnOpenExport" class="btn-action gold" type="button">⚡ Export Approved Tokens</button>
+      <button id="btnOpenExportModal" class="btn-action" type="button" style="background:#2FAA61; color:#FFFFFF; border-color:#2FAA61; font-weight:800;">📥 Export MP4</button>
+      <button id="btnTheatreCapture" class="btn-action primary" type="button">🎥 Theatre Capture</button>
     </div>
   </header>
 
-  <!-- Floating HUD for Step 7 Theatre Capture Mode (fades out when not hovered) -->
+  <!-- Floating HUD for Theatre Capture Mode -->
   <div id="theatreHud" class="theatre-hud">
     <button id="btnHudPlayEpisode" class="btn-action primary" type="button" style="padding:5px 10px; font-weight:700;">
       🎬 Play Full Episode
+    </button>
+    <button id="btnHudExportMp4" class="btn-action" type="button" style="padding:5px 10px; font-weight:800; background:#EABF42; color:#171717; border-color:#EABF42;">
+      📥 Export MP4
     </button>
     <button id="btnHudAspect169" class="btn-action" type="button" style="padding:5px 8px;">16:9</button>
     <button id="btnHudAspect916" class="btn-action" type="button" style="padding:5px 8px;">9:16</button>
@@ -62,193 +64,61 @@
 
   <!-- ==================== 3-COLUMN STUDIO WORKSPACE ==================== -->
   <div class="studio-workspace">
-    <!-- ==================== LEFT SIDEBAR: RIG PROPORTIONS & 15-EMOTION ACTING ==================== -->
-    <aside class="sidebar-column">
-      <!-- Section 1: Parametric Rig Proportions & Head-to-Body Ratio -->
-      <div class="panel-section">
-        <div class="panel-title">
-          <span>1. Rig Proportions & Stroke</span>
-          <span id="ratioReadout" class="ratio-pill">1:3.6 Ratio</span>
+    <!-- ==================== LEFT SIDEBAR: SCROLLABLE ELEMENTS, PROPS & ITEMS LIBRARY ==================== -->
+    <aside class="sidebar-column left-asset-sidebar">
+      <div class="asset-library-header">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:6px;">
+          <div class="panel-title" style="margin:0;">
+            <span>📦 ALL ELEMENTS, PROPS & ITEMS</span>
+          </div>
+          <span id="assetTotalBadge" class="ratio-pill">54 Assets</span>
         </div>
 
-        <div class="control-row">
-          <div class="control-label">
-            <span>Stroke Width (Charcoal #171717)</span>
-            <span id="valStroke" class="control-value">3.5px</span>
-          </div>
-          <input id="sliderStroke" type="range" min="2.0" max="8.0" step="0.5" value="3.5" />
+        <input
+          id="assetSearchInput"
+          type="text"
+          class="select-input asset-search-input"
+          placeholder="🔍 Search ID or name (e.g. prop:, elem:, coffee)..."
+        />
+
+        <div id="assetFilterTabs" class="asset-filter-row">
+          <button type="button" class="asset-filter-pill active" data-cat="all">All (54)</button>
+          <button type="button" class="asset-filter-pill" data-cat="elements">Elements (16)</button>
+          <button type="button" class="asset-filter-pill" data-cat="props">Props (8)</button>
+          <button type="button" class="asset-filter-pill" data-cat="items">Items & B-Roll (12)</button>
+          <button type="button" class="asset-filter-pill" data-cat="characters">Cast (6)</button>
+          <button type="button" class="asset-filter-pill" data-cat="locations">Locations (12)</button>
         </div>
 
-        <div class="control-row">
-          <div class="control-label">
-            <span>Head Radius (#FFFFFF Fill)</span>
-            <span id="valHead" class="control-value">34px</span>
+        <div id="inspectedAssetBanner" class="inspected-asset-banner hidden">
+          <div style="min-width:0; flex:1;">
+            <div style="font-size:9.5px; color:#93C5FD; font-weight:700;">INSPECTING ON STAGE:</div>
+            <div id="inspectedAssetIdText" style="font-family:var(--font-mono); font-size:11px; color:#FFFFFF; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"></div>
           </div>
-          <input id="sliderHead" type="range" min="22" max="52" step="1" value="34" />
-        </div>
-
-        <div class="control-row">
-          <div class="control-label">
-            <span>Torso Length</span>
-            <span id="valTorso" class="control-value">82px</span>
-          </div>
-          <input id="sliderTorso" type="range" min="54" max="124" step="2" value="82" />
-        </div>
-
-        <div class="control-row">
-          <div class="control-label">
-            <span>Slim Limb Length (Arms/Legs)</span>
-            <span id="valLimb" class="control-value">96px</span>
-          </div>
-          <input id="sliderLimb" type="range" min="60" max="128" step="2" value="96" />
+          <button id="btnBackToShot" type="button" class="btn-action primary" style="padding:4px 9px; font-size:11px; flex-shrink:0;">
+            🎬 Back to Shot
+          </button>
         </div>
       </div>
 
-      <!-- Section 2: 15-Emotion Matrix, Poses, Angles & Camera Framing -->
-      <div class="panel-section">
-        <div class="panel-title">
-          <span>2. 15-Emotion Matrix & Camera</span>
-          <span id="activeCastLabel" style="color:#93C5FD; font-size:11px;">ហេង</span>
-        </div>
-
-        <div class="control-row">
-          <div class="control-label"><span>Coordinated Emotion (Face + Posture)</span></div>
-          <select id="selectEmotion" class="select-input">
-            <option value="auto">Auto (Follow Shot Script)</option>
-            <option value="neutral">1. Neutral (ធម្មតា)</option>
-            <option value="happy">2. Happy (រីករាយ)</option>
-            <option value="sad">3. Sad (ក្រៀមក្រំ)</option>
-            <option value="worried">4. Worried (ព្រួយបារម្ភ - Wavy ~)</option>
-            <option value="surprised">5. Surprised (ភ្ញាក់ផ្អើល)</option>
-            <option value="confused">6. Confused (ងឿងឆ្ងល់)</option>
-            <option value="thinking">7. Thinking (កំពុងគិត)</option>
-            <option value="excited">8. Excited (រំភើប)</option>
-            <option value="angry">9. Angry (ខឹង)</option>
-            <option value="tired">10. Tired (ហត់នឿយ)</option>
-            <option value="embarrassed">11. Embarrassed (អៀន/ខ្មាស)</option>
-            <option value="proud">12. Proud (មានមោទនភាព)</option>
-            <option value="scared">13. Scared (ភ័យខ្លាច)</option>
-            <option value="calm">14. Calm (ស្ងប់ចិត្ត)</option>
-            <option value="determined">15. Determined (ប្តេជ្ញាចិត្ត)</option>
-          </select>
-        </div>
-
-        <div class="control-row">
-          <div class="control-label"><span>Motion & Pose Override</span></div>
-          <select id="selectGesture" class="select-input">
-            <option value="auto">Auto (Follow Emotion / Shot)</option>
-            <option value="idle">Idle (ឈរធម្មតា)</option>
-            <option value="open-welcome">Open Welcome (បើកដៃស្វាគមន៍ - ហេង)</option>
-            <option value="sad-droop">Sad / Droop Arms (ទម្លាក់ដៃ)</option>
-            <option value="raise-left-hand">Raise Left Hand (លើកដៃសួរ - ចរណា)</option>
-            <option value="point-right">Point Right (ចង្អុលទៅក្រាហ្វិក)</option>
-            <option value="explain">Explain (ពន្យល់)</option>
-            <option value="think">Think Chin (គិតពិចារណា)</option>
-            <option value="walk">Walk In/Out (ដើរ)</option>
-            <option value="sit">Sit (អង្គុយ)</option>
-            <option value="hold-coffee">Hold Iced Coffee Prop (កាន់កាហ្វេទឹកកក)</option>
-            <option value="hold-phone">Use Phone Prop (កាន់ទូរស័ព្ទ)</option>
-            <option value="nod">Nod Head (ងក់ក្បាលយល់ស្រប)</option>
-            <option value="shake-head">Shake Head (គ្រវីក្បាល)</option>
-            <option value="celebrate">Celebrate (អបអរសាទរ)</option>
-            <option value="jump-celebrate">Jump Celebrate (លោតអបអរសាទរ ✨)</option>
-          </select>
-        </div>
-
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
-          <div class="control-row">
-            <div class="control-label"><span>Actor Angle</span></div>
-            <select id="selectAngle" class="select-input">
-              <option value="auto">Auto (Front)</option>
-              <option value="front">Front (0°)</option>
-              <option value="three-quarter">3/4 View</option>
-              <option value="side">Side (90°)</option>
-            </select>
-          </div>
-
-          <div class="control-row">
-            <div class="control-label"><span>Camera Framing</span></div>
-            <select id="selectCamera" class="select-input">
-              <option value="wide">Wide (Context)</option>
-              <option value="medium">Medium (Dialog)</option>
-              <option value="closeup">Close-Up (Emotion)</option>
-            </select>
-          </div>
-        </div>
-      </div>
-
-      <!-- Section 3: Acting Intervals & Lip-Sync Cadence -->
-      <div class="panel-section">
-        <div class="panel-title">
-          <span>3. Acting Intervals & Lip-Sync</span>
-          <button id="btnBlinkNow" class="btn-action" type="button" style="padding:2px 8px; font-size:10px;">Blink Now</button>
-        </div>
-
-        <div class="control-row">
-          <div class="control-label">
-            <span>Natural Blink Interval</span>
-            <span id="valBlink" class="control-value">3.2s</span>
-          </div>
-          <input id="sliderBlink" type="range" min="1.2" max="6.0" step="0.2" value="3.2" />
-        </div>
-
-        <div class="control-row">
-          <div class="control-label">
-            <span>Hand Gesture Amplitude</span>
-            <span id="valGestureAmp" class="control-value">1.0x</span>
-          </div>
-          <input id="sliderGestureAmp" type="range" min="0.2" max="1.8" step="0.1" value="1.0" />
-        </div>
-
-        <div class="control-row">
-          <div class="control-label">
-            <span>Head Tilt Offset</span>
-            <span id="valHeadTilt" class="control-value">0°</span>
-          </div>
-          <input id="sliderHeadTilt" type="range" min="-18" max="18" step="1" value="0" />
-        </div>
-
-        <div class="control-row">
-          <div class="control-label">
-            <span>Mouth Syllable Cadence</span>
-            <span id="valCadence" class="control-value">8.5 Hz</span>
-          </div>
-          <input id="sliderCadence" type="range" min="4.0" max="14.0" step="0.5" value="8.5" />
-        </div>
-      </div>
+      <!-- Vertically Scrollable List of All 54 Visual Assets -->
+      <div id="leftAssetLibraryList" class="asset-library-list"></div>
     </aside>
 
-    <!-- ==================== CENTER VIEWPORT & 8S TIMELINE ==================== -->
+    <!-- ==================== CENTER VIEWPORT & TIMELINE ==================== -->
     <main class="center-column">
-      <!-- Top Palette Strip -->
-      <div class="palette-strip">
-        <div class="palette-items">
-          <span style="font-weight:700; color:#9CA3AF;">CONTROLLED PALETTE:</span>
-          <span class="pal-chip"><span class="pal-dot" style="background:#F5F5F3"></span>#F5F5F3</span>
-          <span class="pal-chip"><span class="pal-dot" style="background:#FFFFFF"></span>#FFFFFF</span>
-          <span class="pal-chip"><span class="pal-dot" style="background:#171717"></span>#171717</span>
-          <span class="pal-chip"><span class="pal-dot" style="background:#E5E7EB"></span>#E5E7EB</span>
-          <span class="pal-chip"><span class="pal-dot" style="background:#2FAA61"></span>#2FAA61</span>
-          <span class="pal-chip"><span class="pal-dot" style="background:#FA604E"></span>#FA604E</span>
-          <span class="pal-chip"><span class="pal-dot" style="background:#5D98E8"></span>#5D98E8</span>
-          <span class="pal-chip"><span class="pal-dot" style="background:#EABF42"></span>#EABF42</span>
-        </div>
-        <div id="stageDimensionsBadge" style="font-family:var(--font-mono); color:#9CA3AF;">
-          1920 × 1080 (16:9 YouTube Master)
-        </div>
-      </div>
-
-      <!-- Shot Selector Strip -->
+      <!-- Episode & Shot Selector Strip -->
       <div class="shot-selector-strip">
-        <div style="display:flex; align-items:center; gap:8px; overflow-x:auto;">
-          <select id="selectEpisodeDeck" class="select-input" style="width:auto; padding:5px 10px; font-weight:700; color:#4ADE80; border-color:#2FAA61;">
+        <div style="display:flex; align-items:center; gap:8px; overflow-x:auto; flex:1;">
+          <select id="selectEpisodeDeck" class="select-input" style="width:auto; padding:5px 10px; font-weight:700; color:#4ADE80; border-color:#2FAA61; flex-shrink:0;">
             <option value="ep01">☕ EP01: កាហ្វេទឹកកកផ្អែម (Iced Coffee)</option>
             <option value="demo">💰 Ref Demo: ប្រាក់ខែ $300 & ហាងបញ្ចាំ</option>
           </select>
           <div id="shotTabsContainer" class="shot-tabs"></div>
         </div>
-
-        <button id="btnToggleTalk" class="btn-action" type="button">🗣️ Lip-Sync: ON</button>
+        <div id="stageDimensionsBadge" style="font-family:var(--font-mono); font-size:11px; color:#9CA3AF; flex-shrink:0;">
+          1920 × 1080 (16:9)
+        </div>
       </div>
 
       <!-- Auto-Scaling Stage Viewport -->
@@ -264,27 +134,27 @@
             </div>
           </div>
 
-          <!-- Layer 1: ENVIRONMENT (12 Reusable Minimalist Locations + Props) -->
+          <!-- Layer 1: ENVIRONMENT -->
           <div class="layer-environment">
             <svg class="rig-svg" viewBox="0 0 960 540" preserveAspectRatio="xMidYMid meet">
               <g id="environmentSvgGroup"></g>
             </svg>
           </div>
 
-          <!-- Layer 2: CHARACTER (1–3 Expressive Stick Characters + Counter Foreground) -->
+          <!-- Layer 2: CHARACTER & HERO PROPS -->
           <div class="layer-characters">
             <svg class="rig-svg" viewBox="0 0 960 540" preserveAspectRatio="xMidYMid meet">
               <g id="characterSvgGroup"></g>
             </svg>
           </div>
 
-          <!-- Layer 3: EXPLANATION & B-ROLL (Floating In-World Infographics, Speech Bubbles & B-Roll Cutaways) -->
+          <!-- Layer 3: EXPLANATION & B-ROLL -->
           <div id="infographicContainer" class="layer-infographics"></div>
 
-          <!-- Director Narrative Section Ribbon (Intro / Story / B-Roll / Explainer / How-To / Outro) -->
+          <!-- Director Narrative Section Ribbon -->
           <div id="directorSectionBanner" class="director-section-banner editable-text-node" contenteditable="true"></div>
 
-          <!-- Cinematic Scene Transition Overlay (Hand-Drawn Wavy Ink Wipe / Iris / Cross-Dissolve) -->
+          <!-- Cinematic Scene Transition Overlay -->
           <div id="sceneTransitionOverlay" class="scene-transition-overlay">
             <svg class="ink-wipe-svg" viewBox="0 0 60 540" preserveAspectRatio="none">
               <path d="M30,0 Q44,68 20,135 Q42,202 22,270 Q44,338 20,405 Q40,472 30,540" stroke="#171717" stroke-width="5.5" stroke-linecap="round" fill="none" />
@@ -292,182 +162,150 @@
             </svg>
           </div>
 
-          <!-- Bottom Safe Zone: Khmer Voiceover Subtitle Bar -->
+          <!-- Bottom Safe Zone: Khmer Voiceover Running Subtitle Bar -->
           <div id="stageCaptionText" class="stage-caption-bar editable-text-node" contenteditable="true"></div>
         </div>
       </div>
 
-      <!-- Bottom Audio-Driven Interactive Shot Timeline & WebAudio SFX Audition Bar -->
+      <!-- Bottom Audio-Driven Interactive Shot Timeline -->
       <div class="timeline-bar">
         <div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
-          <button id="btnPlayShot8s" class="btn-action primary" type="button" style="padding:9px 12px; font-weight:700;">
+          <button id="btnPlayShot8s" class="btn-action primary" type="button" style="padding:9px 13px; font-weight:700;">
             ▶ Play Shot + Voice
           </button>
-          <button id="btnPlayEpisodeAll" class="btn-action" type="button" style="padding:9px 12px; font-weight:700; border-color:#5D98E8; color:#93C5FD;">
+          <button id="btnPlayEpisodeAll" class="btn-action" type="button" style="padding:9px 13px; font-weight:700; border-color:#5D98E8; color:#93C5FD;">
             🎬 Play Full Episode
           </button>
-          <div>
+          <button id="btnTimelineExportMp4" class="btn-action" type="button" style="padding:9px 13px; font-weight:800; background:#EABF42; color:#171717; border-color:#EABF42;">
+            📥 Export MP4
+          </button>
+          <div style="margin-left:4px;">
             <div style="font-family:var(--font-mono); font-size:9.5px; color:#9CA3AF;">SHOT TIMER</div>
             <div id="timelineReadout" style="font-family:var(--font-mono); font-size:13px; font-weight:700; color:#FFFFFF;">
-              0.0s / 8.0s
+              0.0s / 31.3s
             </div>
           </div>
         </div>
 
         <div class="scrubber-container">
-          <div id="scrubberLabels" class="scrubber-labels">
-            <span style="color:#5D98E8">0.0s: VO Start</span>
-            <span style="color:#EABF42">Beat 1</span>
-            <span style="color:#FA604E">Beat 2</span>
-            <span style="color:#2FAA61">Takeaway</span>
-            <span>End</span>
-          </div>
+          <div id="scrubberLabels" class="scrubber-labels"></div>
           <div id="timelineScrubber" class="scrubber-track">
             <div id="timelineProgressFill" class="scrubber-fill"></div>
             <div id="scrubberTicksContainer"></div>
           </div>
         </div>
-
-        <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
-          <button id="btnSfxWhoosh" class="btn-action" type="button">🔊 Whoosh</button>
-          <button id="btnSfxTicks" class="btn-action" type="button">🔊 Ticks</button>
-          <button id="btnSfxChime" class="btn-action" type="button">🔊 Chime</button>
-        </div>
       </div>
     </main>
 
-    <!-- ==================== RIGHT SIDEBAR: KHMER TYPOGRAPHY, LOCATIONS & VOICE BRIDGE ==================== -->
+    <!-- ==================== RIGHT SIDEBAR: ACTIVE SHOT INSPECTOR (3 CLEAR CARDS) ==================== -->
     <aside class="sidebar-column right">
-      <!-- Section 4: Khmer Typography & Subscript Clearance -->
+      <!-- Card 1: Active Shot Overview & Used Assets -->
       <div class="panel-section">
         <div class="panel-title">
-          <span>4. Khmer Typography & Subscripts</span>
+          <span>1. Active Shot & Used Assets</span>
+          <span id="shotInspectorBadge" class="ratio-pill">Shot 01</span>
         </div>
-
-        <div class="control-row">
-          <div class="control-label"><span>Approved Khmer Web Font</span></div>
-          <div class="segmented-group" style="width:100%;">
-            <button id="btnFontKantumruy" class="seg-btn active-blue" type="button" style="flex:1;">Kantumruy Pro</button>
-            <button id="btnFontNoto" class="seg-btn" type="button" style="flex:1;">Noto Sans Khmer</button>
-          </div>
-        </div>
-
-        <div class="control-row">
-          <div class="control-label">
-            <span>Typography Scale Multiplier</span>
-            <span id="valFontScale" class="control-value">1.0x</span>
-          </div>
-          <input id="sliderFontScale" type="range" min="0.80" max="1.30" step="0.05" value="1.0" />
-        </div>
-
-        <div class="control-row">
-          <div class="control-label">
-            <span>Khmer Line-Height (ជើងអក្សរ Clearance)</span>
-            <span id="valLineHeight" class="control-value">1.65</span>
-          </div>
-          <input id="sliderLineHeight" type="range" min="1.25" max="2.20" step="0.05" value="1.65" />
-        </div>
+        <div id="shotSummaryCard" class="shot-summary-box"></div>
       </div>
 
-      <!-- Section 5: 12 Reusable Locations & Environment Anchor Scale -->
+      <!-- Card 2: Khmer Subtitle Beats (Click Any Beat to Jump Timeline) -->
       <div class="panel-section">
         <div class="panel-title">
-          <span>5. Environment & 12 Locations</span>
+          <span>2. Khmer Subtitle Beats</span>
+          <span style="font-size:10px; color:#9CA3AF; text-transform:none;">Click beat to preview</span>
         </div>
-
-        <div class="control-row">
-          <div class="control-label"><span>Location Override</span></div>
-          <select id="selectLocation" class="select-input">
-            <option value="auto">Auto (Follow Shot Script)</option>
-            <option value="office">1. Office (Desk + Code Laptop)</option>
-            <option value="shop">2. Shop / Pawn Counter (ហាងបញ្ចាំ)</option>
-            <option value="classroom">3. Classroom (ថ្នាក់រៀន)</option>
-            <option value="home">4. Home (ផ្ទះ)</option>
-            <option value="bedroom">5. Bedroom (បន្ទប់គេង)</option>
-            <option value="living-room">6. Living Room (បន្ទប់ទទួលភ្ញៀវ)</option>
-            <option value="kitchen">7. Kitchen (ផ្ទះបាយ)</option>
-            <option value="dining-room">8. Dining Room (បន្ទប់ញ៉ាំអាហារ)</option>
-            <option value="park">9. Park (សួនច្បារ)</option>
-            <option value="street">10. Street (ផ្លូវសាធារណៈ)</option>
-            <option value="gym">11. Gym (កន្លែងហាត់ប្រាណ)</option>
-            <option value="whiteboard">12. Abstract Whiteboard Space</option>
-          </select>
-        </div>
-
-        <div class="control-row">
-          <div class="control-label">
-            <span>Background Anchor Opacity (#E5E7EB)</span>
-            <span id="valEnvScale" class="control-value">100%</span>
-          </div>
-          <input id="sliderEnvScale" type="range" min="0" max="100" step="5" value="100" />
-        </div>
+        <div id="shotCaptionBeatsList" class="shot-beats-list"></div>
       </div>
 
-      <!-- Section 6: Google AI Studio Voice Bridge (Real WebAudio RMS Lip-Sync) -->
+      <!-- Card 3: Voice-Over (VOICE-NARRATOR-001) & Audio File -->
       <div class="panel-section">
         <div class="panel-title">
-          <span>6. AI Studio Voice (WebAudio RMS)</span>
+          <span>3. Voice-Over (VOICE-NARRATOR-001)</span>
+        </div>
+
+        <div class="voice-status-bar">
+          <span id="voiceFileLabel" style="font-size:11.5px; font-weight:700; color:#4ADE80;">🟢 Ready: shot_01.wav</span>
+          <label for="voiceFileInput" class="btn-action" style="padding:3px 8px; font-size:10.5px; cursor:pointer;">
+            📂 Load Audio
+          </label>
+          <input id="voiceFileInput" type="file" accept="audio/*" style="display:none;" />
         </div>
 
         <div id="aiStudioPromptBox" class="prompt-box"></div>
         <button id="btnCopyPrompt" class="btn-action primary" type="button" style="width:100%;">
-          📋 Copy Prompt for Google AI Studio
+          📋 Copy Spoken Khmer TTS Script
         </button>
-
-        <div class="control-row" style="margin-top:4px;">
-          <div class="control-label">
-            <span id="voiceFileLabel">Load .WAV/.MP3 (Real RMS Lip-Sync)</span>
-          </div>
-          <input id="voiceFileInput" type="file" accept="audio/*" class="select-input" />
-        </div>
-      </div>
-
-      <!-- Section 7: Director Visual QA Checklist -->
-      <div class="panel-section">
-        <div class="panel-title"><span>7. Director QA Checklist</span></div>
-        <label style="display:flex; gap:8px; font-size:11px; color:#D1D5DB; align-items:center;">
-          <input type="checkbox" checked /> One learning idea per shot enforced
-        </label>
-        <label style="display:flex; gap:8px; font-size:11px; color:#D1D5DB; align-items:center;">
-          <input type="checkbox" checked /> Khmer subscripts (ជើងអក្សរ) unclipped
-        </label>
-        <label style="display:flex; gap:8px; font-size:11px; color:#D1D5DB; align-items:center;">
-          <input type="checkbox" checked /> 10% Title Safe & TikTok rail respected
-        </label>
       </div>
     </aside>
-  </div>
-
-  <!-- ==================== EXPORT APPROVED TOKENS MODAL ==================== -->
-  <div id="exportModal" class="modal-backdrop">
-    <div class="modal-card">
-      <div class="modal-header">
-        <div>
-          <div style="font-size:14px; font-weight:700; color:#FFFFFF;">
-            Approved Visual System Tokens & Antigravity Prompt (v2.0)
-          </div>
-          <div style="font-size:11.5px; color:#9CA3AF;">
-            Copy and lock these calibrated parameters into your episode generation pipeline.
-          </div>
-        </div>
-        <button id="btnCloseExport" class="btn-action" type="button">✕</button>
-      </div>
-      <div class="modal-body">
-        <pre id="exportCodeBlock" class="export-pre"></pre>
-      </div>
-      <div class="modal-footer">
-        <span id="copyToast" style="font-size:12px; color:#4ADE80; opacity:0; transition:opacity 0.2s;">
-          ✓ Copied to clipboard!
-        </span>
-        <button id="btnCopyExport" class="btn-action primary" type="button">
-          📋 Copy CSS Tokens + Antigravity Prompt
-        </button>
-      </div>
-    </div>
   </div>
 
   <script src="engine/character-rig.js"></script>
   <script src="episodes/ep01-iced-coffee/scenes.js"></script>
   <script src="engine/scene-player.js"></script>
+
+  <!-- DETERMINISTIC 1080p60 MP4 VIDEO EXPORT MODAL -->
+  <div class="export-modal-backdrop hidden" id="videoExportModal">
+    <div class="export-modal-card">
+      <div class="export-modal-header">
+        <div>
+          <div style="font-size:15px; font-weight:800; color:#FFFFFF;">🎬 Deterministic 1080p MP4 Video Exporter</div>
+          <div style="font-size:11.5px; color:#9CA3AF; margin-top:2px;">Headless Chromium Frame-Stepper + 3-Stem WebAudio Mix + FFmpeg H.264</div>
+        </div>
+        <button type="button" class="btn-action" id="btnCloseExportModal" style="padding:4px 10px;">✕</button>
+      </div>
+      <div class="export-modal-body">
+        <div class="export-form-grid">
+          <div class="export-field">
+            <label>Target Scope</label>
+            <select id="exportScopeSelect" class="select-input">
+              <option value="shot">Current Active Shot Only (Fast QA Render)</option>
+              <option value="episode">Full Episode (All Story Shots + Transitions)</option>
+            </select>
+          </div>
+          <div class="export-field">
+            <label>Aspect Ratio & Resolution</label>
+            <select id="exportAspectSelect" class="select-input">
+              <option value="16:9">16:9 YouTube / Facebook (1920 × 1080)</option>
+              <option value="9:16">9:16 TikTok / Reels (1080 × 1920)</option>
+              <option value="1:1">1:1 Facebook Square (1080 × 1080)</option>
+            </select>
+          </div>
+          <div class="export-field">
+            <label>Frame Rate (FPS)</label>
+            <select id="exportFpsSelect" class="select-input">
+              <option value="30">30 FPS (Fast Production Export)</option>
+              <option value="60">60 FPS (Ultra-Smooth Master Export)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="export-cli-box">
+          <div style="font-size:10.5px; font-weight:700; color:#9CA3AF; text-transform:uppercase; margin-bottom:4px;">
+            Equivalent CLI Command (Terminal):
+          </div>
+          <code id="exportCliPreviewCode">node export-video.js --deck ep01 --shot 1 --aspect 16:9 --fps 30</code>
+        </div>
+
+        <div id="exportProgressBox" class="export-progress-box hidden">
+          <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:700; margin-bottom:6px;">
+            <span id="exportStatusText" style="color:#EABF42;">Initializing Headless Chromium...</span>
+            <span id="exportPercentText" style="color:#93C5FD;">0%</span>
+          </div>
+          <div class="scrubber-track" style="height:10px; pointer-events:none;">
+            <div id="exportProgressBarFill" class="scrubber-fill" style="width:0%; background:#2FAA61;"></div>
+          </div>
+          <div id="exportResultActions" class="hidden" style="margin-top:12px; display:flex; align-items:center; justify-content:space-between; gap:10px; background:rgba(47,170,97,0.14); border:1px solid #2FAA61; padding:8px 12px; border-radius:8px;">
+            <span id="exportOutputFileLabel" style="font-size:11.5px; font-weight:700; color:#A7F3D0;">exports/ep01_shot_01.mp4</span>
+            <a id="exportDownloadLink" href="#" download class="btn-action" style="background:#2FAA61; color:#FFFFFF; border-color:#2FAA61; text-decoration:none; font-weight:800; padding:5px 12px;">⬇ Download MP4</a>
+          </div>
+        </div>
+      </div>
+      <div class="export-modal-footer">
+        <button type="button" class="btn-action" id="btnStartServerExport" style="background:#2FAA61; color:#FFFFFF; border-color:#2FAA61; font-weight:800; padding:8px 18px;">
+          🚀 Start MP4 Render
+        </button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>
