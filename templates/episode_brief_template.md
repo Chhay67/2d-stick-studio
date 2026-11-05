@@ -1,7 +1,7 @@
 # Episode Production Package Template
 
 ## 1. Episode Metadata
-- **Episode Code:** `EP01`
+- **Episode Code:** `EPXX`
 - **Topic Pillar:** `[1: Education | 2: Motivation | 3: Personal Finance | 4: Healthy Living]`
 - **Working Title (Khmer):** `...`
 - **Working Title (English Ref):** `...`

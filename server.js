@@ -45,7 +45,7 @@ const server = http.createServer((req, res) => {
 
         const { runDeterministicVideoExport } = require('./export-video');
         runDeterministicVideoExport({
-          deck: opts.deck || 'ep01',
+          deck: opts.deck || 'ep02',
           shot: opts.shot || null,
           aspect: opts.aspect || '16:9',
           fps: opts.fps || 30,

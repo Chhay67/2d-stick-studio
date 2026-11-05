@@ -5,9 +5,14 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "export:ep01": "node export-video.js --deck ep01 --aspect 16:9",
-    "export:shot": "node export-video.js --deck ep01 --shot 1 --aspect 16:9",
-    "export:tiktok": "node export-video.js --deck ep01 --aspect 9:16"
+    "export:ep02": "node export-video.js --deck ep02 --aspect 16:9",
+    "export:shot": "node export-video.js --deck ep02 --shot 1 --aspect 16:9",
+    "export:tiktok": "node export-video.js --deck ep02 --aspect 9:16",
+    "validate": "node tools/validate-episode.js",
+    "test": "node --test tests",
+    "episode:new": "node tools/create-episode.js",
+    "qa:layout": "node tools/audit-layout.js",
+    "qa:playback": "node tools/check-playback.js"
   },
   "dependencies": {
     "ffmpeg-static": "^5.2.0",

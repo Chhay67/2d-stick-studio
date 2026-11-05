@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "episodeId": "ep02-daily-exercise",
+  "stage": "scene-qa",
+  "gates": {
+    "topic": { "status": "approved", "date": "2026-11-05", "evidence": "01_topic_brief.md" },
+    "cast": { "status": "unverified", "evidence": "02_character_and_prop_sheet.md" },
+    "script": { "status": "unverified", "evidence": "03_shot_script.md" }
+  },
+  "audio": "missing",
+  "visualQa": "pending",
+  "export": "pending"
+}

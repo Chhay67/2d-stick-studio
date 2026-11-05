@@ -15,7 +15,7 @@ Use this skill whenever preparing `04_ai_studio_voice_prompts.md`, designing/usi
 
 - **Default Rule (One Unique Voice Across All Episodes):**
   - We design and lock **one unique, persistent Studio Signature Voice (`VOICE-NARRATOR-001` — "Khmer 2D Studio Narrator")** in **Google AI Studio Voice Design** (`gemini-3.8-flash-tts`, `type: "prompted"`, `store: true`) and reuse it across **all episodes and all shots** (including narrating character dialogue lines in `STORY` and `HYBRID` shots via situational `[STYLE]` tags).
-  - Separate character voices (`VOICE-CAST-01..03`) are **optional** and only used if the user explicitly requests multi-speaker mode.
+  - Separate character voices (`VOICE-CAST-01..03`) are **optional** and only used if the user explicitly requests multi-speaker mode. **Multi-Cast Mode (e.g. EP02):** one TTS call per line, saved as `audio/voice/shot_XX/line_NN_<speaker>.wav`; generate prompts per line with `[VOICE ID] / Style / [TRANSCRIPT]`; narrator keeps `VOICE-NARRATOR-001`; see `episodes/ep02-daily-exercise/04_ai_studio_voice_prompts.md` for the template.
 
 ### Canonical Voice Design Persona (Create Once in Google AI Studio)
 - **Model:** `gemini-3.8-flash-tts` (or `gemini-3.8-flash-lite-tts`)
@@ -63,3 +63,21 @@ Every episode uses a **3-Stem Audio Mix**:
    - **Element & B-Roll Reveals (`data-reveal-at` / `data-broll-window`):** `sfx:pop_soft` or `sfx:whoosh_paper` when floating infographics or B-Roll cutaway windows enter.
    - **Data & Bar Fills (`data-fill-at`):** `sfx:counter_ticks` when numbers roll up or horizontal bar segments fill.
    - **Takeaways & Warnings:** `sfx:chime_highlight` (for green `#2FAA61` / gold `#EABF42` positive insight) or `sfx:alert_coral` (for coral `#FA604E` warning pill).
+
+
+## Current episode package contract (supersedes older integration examples)
+
+- EP02 Daily Exercise is the only installed episode. Read `docs/EPISODE_ARCHITECTURE.md` before new production or refactoring.
+- Scaffold with `npm run episode:new -- epXX-topic-slug`. Preserve topic → cast → script approval gates; record explicit evidence in `production.json`, never infer approval from file existence.
+- Register each built episode with `window.EpisodeRegistry.register()` in episode-owned `episode.js`. Add visuals → scenes → manifest script tags before the player. Never add episode-ID branches to selection/export code.
+- Custom props and cast sheets belong in episode `visuals.js`; shared rig changes are only for reusable acting/anatomy primitives. Both preview and export call manifest `renderHeroProps(shot, elapsed)` and `renderCharacterSheet()` hooks. This replaces instructions above to duplicate hero-prop rendering in both player paths.
+- Declare `shot.assets`; derive `getAssetUsage()` from these plus actual actors and location. Do not author a second usage map.
+- `engine/timeline.js` owns pure line scheduling shared by browser/exporter. Do not duplicate constants. Existing runtime shots still receive compiled fields for compatibility.
+- EP02 uses per-line multi-cast audio. After changing line order/text, review affected prompts, filenames and gate readiness.
+- Run `npm test`, `npm run validate` and `npm run qa:layout -- --serve`; inspect screenshots and actual audio before final sign-off. Final-audio validation uses `--final`.
+- Remaining migration: separate actor renderer, production UI, automatic approval invalidation, generated script/prompt documents. These are not implemented. Editable stage text is temporary. Keep existing calibrated engine defaults.
+
+
+## Speaker identity and visual handoff
+
+Keep per-line speaker identity, voice file mapping and visual speaker label consistent. Every on-stage character line is displayed close above its actual speaker in every shot across YouTube 16:9, Facebook 1:1 and TikTok 9:16, with a matching portrait/name and a tail aimed at that character. Off-screen/phone lines retain their identity and explicit label with no tail. Preserve line-bound timing and narrator caption behavior; audio production must not substitute a different visual speaker or detach dialogue into a fixed top row.

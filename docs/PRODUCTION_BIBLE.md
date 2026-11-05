@@ -105,7 +105,7 @@ Emotions must be expressed through **coordinated eye, brow, mouth, head tilt, ha
   4. **`MAIN EXPLAINER & HOW-TO PROTOCOL`:** Deep scientific/financial breakdown (`EXPLAINER` / `HYBRID`) + step-by-step actionable guide (`3–4` rules).
   5. **`OUTRO`:** Character transformation payoff + 1-sentence golden takeaway + animated Subscribe/Share Call-to-Action card.
 - **Cinematic Scene Transitions & Intra-Shot Camera Zoom/Pan ("គិតមើល" Template System):**
-  - **Hand-Drawn Wavy Ink-Line Wipe (`wipe`):** Off-white paper sheet (`#F5F5F3`) led by a vertical hand-drawn `#171717` wavy ink line (`.ink-wipe-svg`) sweeps across the stage with a paper-brush whoosh, alongside `iris` and `dissolve` transitions and a Director Section Ribbon (`#directorSectionBanner`).
+  - **Hand-Drawn Wavy Ink-Line Wipe (`wipe`):** Off-white paper sheet (`#F5F5F3`) led by a vertical hand-drawn `#171717` wavy ink line (`.ink-wipe-svg`) sweeps across the stage with a paper-brush whoosh, alongside `iris` and `dissolve` transitions. The black Director Section Ribbon (`#directorSectionBanner`) is **removed from the stage** — never display it on any shot.
   - **Intra-Shot Camera Beats (`shot.cameraBeats`):** Smooth 60fps cubic-interpolated camera zoom-in (`1.0x → 1.15x`), zoom-out, and horizontal/vertical pan (`panX`, `panY`) during a shot.
   - **Signature "គិតមើល" Info-Box Display Components:**
     1. `.km-key-tracker`: Top-left key/icon progress tracker (`🔑1..7` + yellow active chapter pill).
@@ -117,7 +117,7 @@ Emotions must be expressed through **coordinated eye, brow, mouth, head tilt, ha
     7. `.km-check-row[data-check-at]`: Dim-to-bold progressive checklist rows that light up with a green `✓` at their spoken timestamp.
     8. `.km-dashed-stream`: Curved dashed SVG particle streams (`---🍬/💵-->`) + progressive wavy meniscus fills on hero props.
 - **Aspect Ratio & Voice-Dependent Running Subtitle Rule:** Responsive across `16:9` (`1920×1080` YouTube Master), `9:16` (`1080×1920` TikTok/Reels), and `1:1` (`1080×1080` Facebook), with bottom safe zone reserved for 1–2 lines of high-contrast Khmer subtitles (`#3B3B3B` pill).
-  - **Voice-Dependent Running Caption (`#stageCaptionText`):** Only visible while voice sound is actively playing (`.voice-active`) and hidden (`opacity: 0`) when voice playback stops. Runs progressively word-by-word (`.cap-token.spoken`, `.cap-token.active-word`, `.cap-token.upcoming` + `.caption-voice-progress`) synchronized with each `captionBeat`.
+  - **Voice-Dependent Running Caption (`#stageCaptionText`):** Only visible while voice sound is actively playing (`.voice-active`) and hidden (`opacity: 0`) when voice playback stops. Runs progressively word-by-word (`.cap-token.spoken`, `.cap-token.active-word`, `.cap-token.upcoming`) synchronized with each `captionBeat`. **No linear progress bar** under the caption.
   - **Character Dialog Box Rule (`.ref-speech-bubble` + `data-speak-window="start,end"` + `actor.speakWindows`):** Character speech bubbles are **only visible during the exact time window when that character speaks (`start <= elapsed <= end` while playing)** and automatically hide (`opacity: 0`) when the character stops speaking or playback stops.
 - **Camera Framings:**
   - `WIDE` (`1.0x`): Full body + environment context + spacious infographic placement.
@@ -127,7 +127,7 @@ Emotions must be expressed through **coordinated eye, brow, mouth, head tilt, ha
   1. **`VOICE-NARRATOR-001` (`0 dB`):** Our **single unique, custom-designed vocal persona** created via Google AI Studio Voice Design (`gemini-3.8-flash-tts`, `type: "prompted"`, `store: true`) and used across **all shots and all episodes** by default (with situational `[STYLE]` cues for character quotes and emotional beats).
   2. **Continuous Background Music Bed (`BGM` at `-18 dB` with Auto-Ducking):** Procedural lo-fi marimba/Rhodes score (or external `audio/bgm.mp3`) shifting across `curious`, `story`, `investigation`, and `uplifting` moods, automatically ducking under active voice-over.
   3. **Location Ambience & Point SFX (`sfxCues`):** Subtle room/night ambience + synchronized `whoosh_paper`, `pop_soft`, `counter_ticks`, `chime_highlight`, and `alert_coral` cues.
-  - `VOICE-CAST-01..03` *(Optional)*: Episode-specific character voices used only if multi-speaker dialogue mode is explicitly requested.
+  - `VOICE-CAST-01..03`: Episode-specific character voices for **Multi-Cast Mode** (on request; used by EP02: Vichetr, Dr. Sophea, Pou Samnang). One TTS file per line (`audio/voice/shot_XX/line_NN_<speaker>.wav`); the narrator then only sets scenes, examples, hooks and the CTA. Other episodes keep the single `VOICE-NARRATOR-001` unless the director asks.
 
 ---
 

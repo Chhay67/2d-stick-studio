@@ -732,16 +732,6 @@ body {
   color: rgba(255, 255, 255, 0.38);
 }
 
-.caption-voice-progress {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  height: 3px;
-  background: linear-gradient(90deg, #2FAA61 0%, #EABF42 100%);
-  width: 0%;
-  transition: width 0.08s linear;
-}
-
 .animation-stage.aspect-9-16 .stage-caption-bar {
   bottom: 13.2%;
   left: 44.5%;
@@ -1040,49 +1030,6 @@ input[type="range"]::-webkit-slider-thumb {
   display: flex;
   align-items: center;
   justify-content: space-between;
-}
-
-/* ==================== STEP 7: THEATRE CAPTURE MODE (1080p EXPORT) ==================== */
-.theatre-hud {
-  position: fixed;
-  top: 14px;
-  right: 18px;
-  z-index: 120;
-  display: none;
-  align-items: center;
-  gap: 8px;
-  background: rgba(15, 17, 21, 0.85);
-  border: 1px solid #2E3446;
-  border-radius: 10px;
-  padding: 6px 10px;
-  opacity: 0.14;
-  transition: opacity 0.22s ease;
-}
-
-.theatre-hud:hover {
-  opacity: 1;
-}
-
-body.theatre-capture-mode .theatre-hud {
-  display: flex;
-}
-
-body.theatre-capture-mode .studio-header,
-body.theatre-capture-mode .sidebar-column,
-body.theatre-capture-mode .palette-strip,
-body.theatre-capture-mode .shot-selector-strip,
-body.theatre-capture-mode .timeline-bar,
-body.theatre-capture-mode #safeZoneOverlay {
-  display: none !important;
-}
-
-body.theatre-capture-mode .studio-workspace {
-  grid-template-columns: 1fr !important;
-}
-
-body.theatre-capture-mode .stage-viewport {
-  background: #000000;
-  padding: 0;
 }
 
 /* ==================== DIRECTOR SECTION RIBBON, SCENE TRANSITIONS & B-ROLL CUTAWAYS ==================== */
@@ -1950,7 +1897,6 @@ body.export-render-mode .studio-header,
 body.export-render-mode .sidebar-column,
 body.export-render-mode .shot-selector-strip,
 body.export-render-mode .timeline-bar,
-body.export-render-mode #theatreHud,
 body.export-render-mode #inspectedAssetBanner,
 body.export-render-mode #safeZoneOverlay,
 body.export-render-mode #tiktokDeadzone,
@@ -1978,6 +1924,11 @@ body.export-render-mode .animation-stage {
   border-radius: 0 !important;
   box-shadow: none !important;
   transform-origin: center center !important;
+}
+
+/* Export visibility and transforms must settle at the requested frame time. */
+body.export-render-mode #animationStage * {
+  transition: none !important;
 }
 
 .export-modal-backdrop {

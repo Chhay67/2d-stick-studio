@@ -4,9 +4,9 @@
  * Uses Headless Chrome/Edge (puppeteer-core) + 3-Stem Audio Synthesizer + FFmpeg (ffmpeg-static)
  *
  * Usage Examples:
- *   node export-video.js --deck ep01 --shot 1 --aspect 16:9 --fps 30
- *   node export-video.js --deck ep01 --aspect 16:9 --fps 60
- *   node export-video.js --deck ep01 --aspect 9:16 --fps 30
+ *   node export-video.js --deck ep02 --shot 1 --aspect 16:9 --fps 30
+ *   node export-video.js --deck ep02 --aspect 16:9 --fps 60
+ *   node export-video.js --deck ep02 --aspect 9:16 --fps 30
  */
 
 const fs = require('fs');
@@ -14,6 +14,7 @@ const path = require('path');
 const { spawn, spawnSync } = require('child_process');
 const puppeteer = require('puppeteer-core');
 const ffmpegPath = require('ffmpeg-static');
+const { compileLines } = require('./engine/timeline');
 
 const ROOT = __dirname;
 const EXPORTS_DIR = path.join(ROOT, 'exports');
@@ -156,8 +157,22 @@ function buildMasterAudioAndSchedules(shots, fps, isMultiShotEpisode) {
 
   for (let i = 0; i < shots.length; i++) {
     const shot = shots[i];
-    const decodedVoice = decodeVoiceAudioToFloat32(shot.voiceBase);
-    const voiceDur = decodedVoice ? decodedVoice.duration : shot.defaultDuration || 8.0;
+    // Multi-voice mode: one TTS file per line (audio/voice/shot_XX/line_NN_<speaker>.wav)
+    let lineClips = null;
+    let decodedVoice = null;
+    let voiceDur;
+    if (Array.isArray(shot.lines) && shot.voiceDir) {
+      const decoded = shot.lines.map((ln, li) => {
+        const base = shot.voiceDir + '/line_' + String(li + 1).padStart(2, '0') + '_' + ln.voiceSlug;
+        return decodeVoiceAudioToFloat32(base);
+      });
+      const timeline = compileLines(shot.lines, decoded.map((audio, i) => audio ? audio.duration : shot.lines[i].dur));
+      lineClips = timeline.clips.map((clip, i) => ({ start: clip.start, end: clip.end, dur: clip.duration, dec: decoded[i] }));
+      voiceDur = timeline.duration;
+    } else {
+      decodedVoice = decodeVoiceAudioToFloat32(shot.voiceBase);
+      voiceDur = decodedVoice ? decodedVoice.duration : shot.defaultDuration || 8.0;
+    }
     const tailPause = isMultiShotEpisode && i < shots.length - 1 ? 0.55 : 0.25;
     const shotTotalDur = Number((voiceDur + tailPause).toFixed(3));
     const frameCount = Math.max(1, Math.round(shotTotalDur * fps));
@@ -167,7 +182,23 @@ function buildMasterAudioAndSchedules(shots, fps, isMultiShotEpisode) {
     const windowSamples = Math.floor(0.035 * sampleRate);
     for (let f = 0; f < frameCount; f++) {
       const tSec = f / fps;
-      if (tSec > voiceDur) {
+      if (lineClips) {
+        const clip = lineClips.find((c) => tSec >= c.start && tSec <= c.end);
+        if (!clip) {
+          mouthFrames[f] = 0;
+        } else if (clip.dec) {
+          const centerSample = Math.floor((tSec - clip.start) * sampleRate);
+          const s0 = Math.max(0, centerSample - windowSamples);
+          const s1 = Math.min(clip.dec.samples.length, centerSample + windowSamples);
+          let sumSq = 0;
+          for (let s = s0; s < s1; s++) sumSq += clip.dec.samples[s] * clip.dec.samples[s];
+          const rms = s1 > s0 ? Math.sqrt(sumSq / (s1 - s0)) : 0;
+          mouthFrames[f] = Math.min(1, rms * 4.5);
+        } else {
+          const wave = Math.sin(tSec * 8.5 * Math.PI) * Math.cos(tSec * 2.3 * Math.PI);
+          mouthFrames[f] = Math.max(0, wave);
+        }
+      } else if (tSec > voiceDur) {
         mouthFrames[f] = 0;
       } else if (decodedVoice) {
         const centerSample = Math.floor(tSec * sampleRate);
@@ -188,6 +219,8 @@ function buildMasterAudioAndSchedules(shots, fps, isMultiShotEpisode) {
     shotSchedules.push({
       shot,
       decodedVoice,
+      lineClips,
+      lineDurs: lineClips ? lineClips.map((c) => c.dur) : null,
       voiceDur,
       shotTotalDur,
       frameCount,
@@ -203,6 +236,20 @@ function buildMasterAudioAndSchedules(shots, fps, isMultiShotEpisode) {
 
   shotSchedules.forEach((sched, idx) => {
     const baseSample = Math.floor(sched.startTimeInMaster * sampleRate);
+
+    // Stem 1 (multi-voice): per-line character / narrator voices (0 dB)
+    if (sched.lineClips) {
+      sched.lineClips.forEach((clip) => {
+        if (!clip.dec) return;
+        const clipBase = baseSample + Math.floor(clip.start * sampleRate);
+        const cs = clip.dec.samples;
+        for (let i = 0; i < cs.length && clipBase + i < totalSamples; i++) {
+          const v = cs[i] * 0.92;
+          leftCh[clipBase + i] += v;
+          rightCh[clipBase + i] += v;
+        }
+      });
+    }
 
     // Stem 1: VOICE-NARRATOR-001 (0 dB)
     if (sched.decodedVoice) {
@@ -293,7 +340,7 @@ function writeStereoWavFile(filePath, leftCh, rightCh, sampleRate, durationSec) 
 }
 
 async function runDeterministicVideoExport(options = {}) {
-  const deck = options.deck || 'ep01';
+  const deck = options.deck || 'ep02';
   const shotNumber = options.shot ? parseInt(options.shot, 10) : null; // 1-based shot number or null for full episode
   const aspect = options.aspect || '16:9';
   const fps = parseInt(options.fps || 30, 10);
@@ -393,7 +440,8 @@ async function runDeterministicVideoExport(options = {}) {
           deck,
           shotIndex: sched.shot.index,
           aspect,
-          duration: sched.voiceDur
+          duration: sched.voiceDur,
+          lineDurs: sched.lineDurs
         }
       );
 
@@ -444,7 +492,7 @@ async function runDeterministicVideoExport(options = {}) {
   }
 }
 
-// Allow running directly from CLI: node export-video.js --deck ep01 --shot 1 --aspect 16:9 --fps 30
+// Allow running directly from CLI: node export-video.js --deck ep02 --shot 1 --aspect 16:9 --fps 30
 if (require.main === module) {
   const args = process.argv.slice(2);
   const getArg = (flag, fallback) => {
@@ -453,7 +501,7 @@ if (require.main === module) {
   };
 
   const opts = {
-    deck: getArg('--deck', 'ep01'),
+    deck: getArg('--deck', 'ep02'),
     shot: getArg('--shot', null),
     aspect: getArg('--aspect', '16:9'),
     fps: parseInt(getArg('--fps', '30'), 10),

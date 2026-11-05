@@ -6,10 +6,10 @@ This manual explains how **Gemini (Writer/Director)** prepares voice & sound eff
 
 ## 1. Folder & File Naming Convention
 
-For every episode (`episodes/ep01-<slug>/`), store generated audio files in:
+For every episode (`episodes/epXX-<slug>/`), store generated audio files in:
 
 ```text
-episodes/ep01-<slug>/
+episodes/epXX-<slug>/
 ├── audio/
 │   ├── voice/
 │   │   ├── shot_01.wav      # Voiceover / dialogue for Shot 01
@@ -83,3 +83,16 @@ Emotion: Curious at first, then confident and reassuring on the final point.
 | `sfx:ding_green` | Positive habit / green (`#2FAA61`) highlight appears | Warm marimba/bell chime |
 | `sfx:alert_coral` | Warning / coral (`#FA604E`) `នៅសល់តិច` or haircut bar triggers | Low soft muted two-tone alert |
 | `sfx:gold_spark` | Gold (`#EABF42`) value or takeaway locks in | Crisp subtle harmonic chime |
+
+
+---
+## 5. Multi-Cast Mode (per episode, on request — used by EP02)
+- Voices: `VOICE-NARRATOR-001` (scene-setting, examples, hooks, CTA) + `VOICE-CAST-01..03` (one per character; EP02 → Vichetr `Puck`, Dr. Sophea `Aoede`, Pou Samnang `Charon`).
+- **One TTS call per line.** Save as `episodes/<ep>/audio/voice/shot_XX/line_NN_<speaker>.wav` (or `.mp3`); the studio plays them back-to-back and derives timing from the real file lengths, so trim silence.
+- Prompt per line: `[VOICE ID: <id> — <speaker>]` / `Style: <cue>` / `[TRANSCRIPT]` (Khmer, numbers spelled out). Ready-made prompts: `episodes/ep02-daily-exercise/04_ai_studio_voice_prompts.md`.
+- Phone-call lines: add a light phone-EQ note. Keep emotion cues consistent with the beat (`[tired]` for problems, `[reassuring]` for explanations).
+
+
+## Current package workflow
+
+EP02 is the sole installed episode. Follow [the episode architecture contract](./EPISODE_ARCHITECTURE.md). Scaffold planning files with `npm run episode:new -- ep03-topic-slug`, record real gate evidence in `production.json`, and keep topic visuals in episode-owned modules. Audio uses per-line files for EP02; use the existing multi-cast voice mode. Run validation and all-format QA before final export. Do not treat file existence or missing-audio previews as production approval.

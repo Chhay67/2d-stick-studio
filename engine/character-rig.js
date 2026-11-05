@@ -56,24 +56,27 @@ window.CharacterRig = (function () {
     const activeMouth = config.mouth ?? preset.mouth;
     const activeGesture = config.gesture ?? preset.defaultGesture;
 
-    // Subtle idle breathing, walk-in entrance & jump-celebrate motion modifiers
+    // Subtle idle breathing, walk-in entrance, walk-to-chair & jump-celebrate motion modifiers
     const walkInProg = config.walkInProgress ?? 1;
-    const isWalkingIn = walkInProg < 0.99 && !config.behindCounter && activeGesture !== 'sit';
+    const sitOnChair = Boolean(config.sitOnChair);
+    const walkCut = sitOnChair ? 0.85 : 0.99;
+    const isWalkingIn = walkInProg < walkCut && !config.behindCounter && (sitOnChair || activeGesture !== 'sit');
     const isJumping = activeGesture === 'jump-celebrate';
     const jumpOffsetY = isJumping ? -Math.abs(Math.sin(phase * 4.2)) * 22 * amp : 0;
     const breathY = Math.sin(phase * 1.8) * 1.8 + (preset.postureY || 0) + jumpOffsetY;
+    const walkNorm = isWalkingIn ? Math.max(0, Math.min(1, walkInProg / walkCut)) : 1;
     const walkShiftX =
-      activeGesture === 'walk'
+      activeGesture === 'walk' && !sitOnChair
         ? Math.sin(phase * 3.5) * 14 * amp
         : isWalkingIn
-          ? -(1 - walkInProg) * 58
+          ? -(1 - walkNorm) * (sitOnChair ? 115 : 58)
           : 0;
     const nodRotate = activeGesture === 'nod' ? Math.sin(phase * 4.5) * 7 * amp : 0;
     const shakeShiftX = activeGesture === 'shake-head' ? Math.sin(phase * 5.0) * 6 * amp : 0;
     const actorX = x + walkShiftX;
 
-    const isSitting = activeGesture === 'sit';
-    const hipY = groundY - (config.behindCounter ? 0 : isSitting ? limbLen * 0.7 : limbLen) + jumpOffsetY * 0.85;
+    const isSitting = (activeGesture === 'sit' || activeGesture === 'sit-type' || sitOnChair) && !isWalkingIn;
+    const hipY = groundY - (config.behindCounter ? 0 : isSitting ? limbLen * 0.68 : limbLen) + jumpOffsetY * 0.85;
     const shoulderY = hipY - torsoLen + (breathY - jumpOffsetY * 0.85);
     const neckTopY = shoulderY - 10;
     const headCenterY = neckTopY - r + 2;
@@ -178,17 +181,47 @@ window.CharacterRig = (function () {
         break;
       case 'hold-phone':
       case 'hold-coffee':
+      case 'hold-water':
         leftElbow = { x: actorX - 18 * armScale, y: shoulderY + 40 * armScale };
         leftHand = { x: actorX - 22 * armScale, y: shoulderY + 74 * armScale };
         rightElbow = { x: actorX + 28 * armScale, y: shoulderY + 30 * armScale };
         rightHand = { x: actorX + 44 * armScale, y: shoulderY + 10 * armScale };
         break;
+      case 'hold-dumbbell':
+        leftElbow = { x: actorX - 28 * armScale, y: shoulderY + 26 * armScale };
+        leftHand = { x: actorX - 16, y: hipY - 10 };
+        rightElbow = { x: actorX + 32 * armScale, y: shoulderY + 28 * armScale };
+        rightHand = { x: actorX + 48 * armScale, y: shoulderY + 2 * armScale - Math.abs(wave) * 0.7 };
+        break;
+      case 'stretch-arms':
+        leftElbow = { x: actorX - 38 * armScale, y: shoulderY - 14 * armScale };
+        leftHand = { x: actorX - 24 * armScale, y: shoulderY - 52 * armScale + wave * 0.4 };
+        rightElbow = { x: actorX + 38 * armScale, y: shoulderY - 14 * armScale };
+        rightHand = { x: actorX + 24 * armScale, y: shoulderY - 52 * armScale - wave * 0.4 };
+        break;
+      case 'jog-energetic': {
+        const jogSwing = Math.sin(phase * 4.8) * 26 * amp;
+        leftElbow = { x: actorX - 22 + jogSwing * 0.55, y: shoulderY + 30 * armScale };
+        leftHand = { x: actorX - 14 + jogSwing, y: shoulderY + 14 * armScale - Math.abs(jogSwing) * 0.25 };
+        rightElbow = { x: actorX + 22 - jogSwing * 0.55, y: shoulderY + 30 * armScale };
+        rightHand = { x: actorX + 14 - jogSwing, y: shoulderY + 14 * armScale - Math.abs(jogSwing) * 0.25 };
+        break;
+      }
       case 'stress':
         leftElbow = { x: actorX - 38 * armScale, y: shoulderY - 6 * armScale };
         leftHand = { x: actorX - r + 4, y: headCenterY - 6 };
         rightElbow = { x: actorX + 38 * armScale, y: shoulderY - 6 * armScale };
         rightHand = { x: actorX + r - 4, y: headCenterY - 6 };
         break;
+      case 'sit':
+      case 'sit-type': {
+        const typeBounce = Math.sin(phase * 6.5) * 3.5 * amp;
+        leftElbow = { x: actorX + 12 * armScale, y: shoulderY + 34 * armScale };
+        leftHand = { x: actorX + 38 * armScale, y: shoulderY + 42 * armScale + typeBounce };
+        rightElbow = { x: actorX + 20 * armScale, y: shoulderY + 32 * armScale };
+        rightHand = { x: actorX + 48 * armScale, y: shoulderY + 40 * armScale - typeBounce };
+        break;
+      }
       case 'walk':
         const armSwing = Math.sin(phase * 3.5) * 22 * amp;
         leftElbow = { x: actorX - 16 + armSwing * 0.4, y: shoulderY + 36 * armScale };
@@ -199,38 +232,73 @@ window.CharacterRig = (function () {
       case 'idle':
       case 'counter-idle':
       default:
-        leftElbow = { x: actorX - 15 * armScale, y: shoulderY + 38 * armScale };
-        leftHand = { x: actorX - 18 * armScale, y: shoulderY + 74 * armScale };
-        rightElbow = { x: actorX + 15 * armScale, y: shoulderY + 38 * armScale };
-        rightHand = { x: actorX + 18 * armScale, y: shoulderY + 74 * armScale };
+        if (isWalkingIn) {
+          const walkSwing = Math.sin(phase * 4.2) * 20 * amp;
+          leftElbow = { x: actorX - 14 + walkSwing * 0.4, y: shoulderY + 36 * armScale };
+          leftHand = { x: actorX - 20 + walkSwing, y: shoulderY + 68 * armScale };
+          rightElbow = { x: actorX + 14 - walkSwing * 0.4, y: shoulderY + 36 * armScale };
+          rightHand = { x: actorX + 20 - walkSwing, y: shoulderY + 68 * armScale };
+        } else {
+          leftElbow = { x: actorX - 15 * armScale, y: shoulderY + 38 * armScale };
+          leftHand = { x: actorX - 18 * armScale, y: shoulderY + 74 * armScale };
+          rightElbow = { x: actorX + 15 * armScale, y: shoulderY + 38 * armScale };
+          rightHand = { x: actorX + 18 * armScale, y: shoulderY + 74 * armScale };
+        }
         break;
+    }
+
+    // Override arms with natural walking swing while walking in toward the chair
+    if (isWalkingIn && sitOnChair) {
+      const walkSwing = Math.sin(phase * 4.2) * 22 * amp;
+      leftElbow = { x: actorX - 14 + walkSwing * 0.45, y: shoulderY + 34 * armScale };
+      leftHand = { x: actorX - 20 + walkSwing, y: shoulderY + 66 * armScale };
+      rightElbow = { x: actorX + 14 - walkSwing * 0.45, y: shoulderY + 34 * armScale };
+      rightHand = { x: actorX + 20 - walkSwing, y: shoulderY + 66 * armScale };
     }
 
     // Legs & Locomotion
     let legsSVG = '';
     if (!config.behindCounter) {
       if (isSitting) {
+        const stoolLines = sitOnChair
+          ? ''
+          : `
+            <line x1="${actorX - 14}" y1="${hipY + 4}" x2="${actorX + 14}" y2="${hipY + 4}" stroke="#64748B" stroke-width="4" stroke-linecap="round" />
+            <line x1="${actorX}" y1="${hipY + 4}" x2="${actorX}" y2="${groundY}" stroke="#64748B" stroke-width="3.5" />
+          `;
         legsSVG = `
-          <ellipse cx="${actorX + 10}" cy="${groundY + 5}" rx="36" ry="5.5" fill="${NEUTRAL}" />
-          <line x1="${actorX - 14}" y1="${hipY + 4}" x2="${actorX + 14}" y2="${hipY + 4}" stroke="#64748B" stroke-width="4" stroke-linecap="round" />
-          <line x1="${actorX}" y1="${hipY + 4}" x2="${actorX}" y2="${groundY}" stroke="#64748B" stroke-width="3.5" />
-          <polyline points="${actorX - 4},${hipY} ${actorX + 24},${hipY + 6} ${actorX + 24},${groundY}" class="rig-stroke" />
-          <polyline points="${actorX + 4},${hipY} ${actorX + 34},${hipY + 6} ${actorX + 34},${groundY}" class="rig-stroke" />
+          <ellipse cx="${actorX + 12}" cy="${groundY + 5}" rx="36" ry="5.5" fill="${NEUTRAL}" />
+          ${stoolLines}
+          <polyline points="${actorX - 4},${hipY} ${actorX + 24},${hipY + 4} ${actorX + 24},${groundY}" class="rig-stroke" />
+          <polyline points="${actorX + 4},${hipY} ${actorX + 34},${hipY + 4} ${actorX + 34},${groundY}" class="rig-stroke" />
+          <line x1="${actorX + 22}" y1="${groundY}" x2="${actorX + 31}" y2="${groundY}" class="rig-stroke" />
+          <line x1="${actorX + 32}" y1="${groundY}" x2="${actorX + 41}" y2="${groundY}" class="rig-stroke" />
         `;
       } else {
+        const isJogging = activeGesture === 'jog-energetic';
         const stride =
-          activeGesture === 'walk' || isWalkingIn
-            ? Math.sin(phase * 4.2) * 20 * amp
-            : isJumping
-              ? 14
-              : 0;
-        const footGroundY = groundY + (isJumping ? jumpOffsetY * 0.65 : 0);
+          isJogging
+            ? Math.sin(phase * 4.8) * 26 * amp
+            : activeGesture === 'walk' || isWalkingIn
+              ? Math.sin(phase * 4.2) * 20 * amp
+              : isJumping
+                ? 14
+                : 0;
+        const jogBounceY = isJogging ? -Math.abs(Math.sin(phase * 4.8)) * 9 : 0;
+        const footGroundY = groundY + (isJumping ? jumpOffsetY * 0.65 : jogBounceY * 0.45);
         const leftFootX = actorX - 18 - stride;
         const rightFootX = actorX + 18 + stride;
-        const shadowRx = isJumping ? 28 : 38;
+        const shadowRx = isJumping || isJogging ? 30 : 38;
+        const speedLinesSVG = isJogging
+          ? `
+            <line x1="${actorX - 58}" y1="${hipY - 22}" x2="${actorX - 36}" y2="${hipY - 22}" stroke="#2FAA61" stroke-width="2.5" stroke-linecap="round" opacity="0.75" />
+            <line x1="${actorX - 66}" y1="${hipY + 6}" x2="${actorX - 40}" y2="${hipY + 6}" stroke="#5D98E8" stroke-width="2.5" stroke-linecap="round" opacity="0.75" />
+          `
+          : '';
         if (style === 'minimal') {
           legsSVG = `
             <ellipse cx="${actorX}" cy="${groundY + 5}" rx="${shadowRx}" ry="6" fill="${NEUTRAL}" />
+            ${speedLinesSVG}
             <line x1="${actorX}" y1="${hipY}" x2="${leftFootX}" y2="${footGroundY}" class="rig-stroke" />
             <line x1="${actorX}" y1="${hipY}" x2="${rightFootX}" y2="${footGroundY}" class="rig-stroke" />
             <line x1="${leftFootX - 9}" y1="${footGroundY}" x2="${leftFootX + 4}" y2="${footGroundY}" class="rig-stroke" />
@@ -239,6 +307,7 @@ window.CharacterRig = (function () {
         } else {
           legsSVG = `
             <ellipse cx="${actorX}" cy="${groundY + 5}" rx="${shadowRx - 4}" ry="5.5" fill="rgba(23,23,23,0.12)" />
+            ${speedLinesSVG}
             <line x1="${actorX - 4}" y1="${hipY}" x2="${leftFootX}" y2="${footGroundY}" class="rig-stroke" />
             <line x1="${actorX + 4}" y1="${hipY}" x2="${rightFootX}" y2="${footGroundY}" class="rig-stroke" />
             <ellipse cx="${leftFootX - 5}" cy="${footGroundY}" rx="9" ry="4" fill="${WHITE}" class="rig-stroke-filled" />
@@ -261,6 +330,33 @@ window.CharacterRig = (function () {
           <polygon points="-9,-10 9,-10 7,14 -7,14" fill="#7C4D2B" stroke="${INK}" stroke-width="1.8" />
           <polygon points="-7.6,4 7.6,4 7,14 -7,14" fill="#FEF3C7" stroke="${INK}" stroke-width="1.4" />
         </g>
+      `;
+    } else if (activeGesture === 'hold-water') {
+      const wx = rightHand.x + 3;
+      const wy = rightHand.y - 8;
+      propSVG = `
+        <g transform="translate(${wx}, ${wy})">
+          <rect x="-4" y="-19" width="8" height="5" rx="1.5" fill="#2FAA61" stroke="${INK}" stroke-width="1.8" />
+          <rect x="-8" y="-14" width="16" height="26" rx="4" fill="#E0F2FE" stroke="${INK}" stroke-width="2" />
+          <rect x="-6.5" y="-4" width="13" height="14" rx="2" fill="#5D98E8" fill-opacity="0.78" />
+          <line x1="-5" y1="-8" x2="5" y2="-8" stroke="#2FAA61" stroke-width="2" />
+        </g>
+      `;
+    } else if (activeGesture === 'hold-dumbbell') {
+      const dx = rightHand.x + 2;
+      const dy = rightHand.y - 2;
+      propSVG = `
+        <g transform="translate(${dx}, ${dy}) rotate(-10)">
+          <line x1="-18" y1="0" x2="18" y2="0" stroke="${INK}" stroke-width="4" stroke-linecap="round" />
+          <rect x="-22" y="-10" width="7" height="20" rx="2.5" fill="#5D98E8" stroke="${INK}" stroke-width="2" />
+          <rect x="-15" y="-7" width="4" height="14" rx="1.5" fill="#1E293B" stroke="${INK}" stroke-width="1.6" />
+          <rect x="15" y="-10" width="7" height="20" rx="2.5" fill="#5D98E8" stroke="${INK}" stroke-width="2" />
+          <rect x="11" y="-7" width="4" height="14" rx="1.5" fill="#1E293B" stroke="${INK}" stroke-width="1.6" />
+        </g>
+      `;
+    } else if (activeGesture === 'stretch-arms') {
+      propSVG = `
+        <path d="M ${leftHand.x - 6} ${leftHand.y - 10} Q ${actorX} ${leftHand.y - 26} ${rightHand.x + 6} ${rightHand.y - 10}" fill="none" stroke="#2FAA61" stroke-width="2.5" stroke-dasharray="5 4" />
       `;
     }
 
@@ -575,28 +671,28 @@ window.CharacterRig = (function () {
     `;
   }
 
-  function renderOfficeDeskLaptopSVG(x = 285, groundY = 430) {
-    const deskW = 225;
+  function renderOfficeDeskLaptopSVG(x = 248, groundY = 430) {
+    const deskW = 196;
     const deskH = 112;
     const deskY = groundY - deskH;
     const topLedgeH = 12;
-    const lapW = 116;
-    const lapH = 74;
+    const lapW = 108;
+    const lapH = 70;
     const lapX = x + (deskW - lapW) / 2;
     const lapY = deskY - lapH - 4;
 
     return `
       <g class="prop-office-desk">
         <rect x="${x}" y="${deskY}" width="${deskW}" height="${deskH}" fill="#E6E9EF" stroke="${INK}" stroke-width="3" rx="2" />
-        <rect x="${x - 10}" y="${deskY - topLedgeH}" width="${deskW + 20}" height="${topLedgeH}" rx="4" fill="${WHITE}" stroke="${INK}" stroke-width="3" />
+        <rect x="${x - 8}" y="${deskY - topLedgeH}" width="${deskW + 16}" height="${topLedgeH}" rx="4" fill="${WHITE}" stroke="${INK}" stroke-width="3" />
         <rect x="${lapX}" y="${lapY}" width="${lapW}" height="${lapH}" rx="6" fill="#1E2638" stroke="${INK}" stroke-width="3" />
-        <polygon points="${lapX - 12},${deskY - topLedgeH} ${lapX + lapW + 12},${deskY - topLedgeH} ${lapX + lapW + 4},${deskY - topLedgeH - 6} ${lapX - 4},${deskY - topLedgeH - 6}"
+        <polygon points="${lapX - 10},${deskY - topLedgeH} ${lapX + lapW + 10},${deskY - topLedgeH} ${lapX + lapW + 4},${deskY - topLedgeH - 6} ${lapX - 4},${deskY - topLedgeH - 6}"
                  fill="#E6E9EF" stroke="${INK}" stroke-width="2.5" />
-        <line x1="${lapX + 16}" y1="${lapY + 16}" x2="${lapX + 46}" y2="${lapY + 16}" stroke="#2FAA61" stroke-width="3.5" stroke-linecap="round" />
-        <line x1="${lapX + 16}" y1="${lapY + 27}" x2="${lapX + 74}" y2="${lapY + 27}" stroke="#5D98E8" stroke-width="3.5" stroke-linecap="round" />
-        <line x1="${lapX + 16}" y1="${lapY + 38}" x2="${lapX + 54}" y2="${lapY + 38}" stroke="#EABF42" stroke-width="3.5" stroke-linecap="round" />
-        <line x1="${lapX + 16}" y1="${lapY + 49}" x2="${lapX + 78}" y2="${lapY + 49}" stroke="#94A3B8" stroke-width="3.5" stroke-linecap="round" />
-        <line x1="${lapX + 16}" y1="${lapY + 60}" x2="${lapX + 62}" y2="${lapY + 60}" stroke="#2FAA61" stroke-width="3.5" stroke-linecap="round" />
+        <line x1="${lapX + 14}" y1="${lapY + 15}" x2="${lapX + 42}" y2="${lapY + 15}" stroke="#2FAA61" stroke-width="3.5" stroke-linecap="round" />
+        <line x1="${lapX + 14}" y1="${lapY + 26}" x2="${lapX + 68}" y2="${lapY + 26}" stroke="#5D98E8" stroke-width="3.5" stroke-linecap="round" />
+        <line x1="${lapX + 14}" y1="${lapY + 37}" x2="${lapX + 50}" y2="${lapY + 37}" stroke="#EABF42" stroke-width="3.5" stroke-linecap="round" />
+        <line x1="${lapX + 14}" y1="${lapY + 48}" x2="${lapX + 72}" y2="${lapY + 48}" stroke="#94A3B8" stroke-width="3.5" stroke-linecap="round" />
+        <line x1="${lapX + 14}" y1="${lapY + 58}" x2="${lapX + 58}" y2="${lapY + 58}" stroke="#2FAA61" stroke-width="3.5" stroke-linecap="round" />
       </g>
     `;
   }
@@ -710,25 +806,25 @@ window.CharacterRig = (function () {
       return `
         <g class="ambient-bg-motion" opacity="0.48">
           <!-- Window with passing vehicle silhouette outside ("គិតមើល" ambient world motion) -->
-          <g transform="translate(88, 128)">
-            <rect x="0" y="0" width="128" height="96" rx="4" fill="#F8FAFC" stroke="${LINE}" stroke-width="1.6" />
+          <g transform="translate(52, 124)">
+            <rect x="0" y="0" width="118" height="92" rx="4" fill="#F8FAFC" stroke="${LINE}" stroke-width="1.6" />
             <clipPath id="winClipAmb">
-              <rect x="2" y="2" width="124" height="92" />
+              <rect x="2" y="2" width="114" height="88" />
             </clipPath>
             <g clip-path="url(#winClipAmb)">
-              <line x1="0" y1="78" x2="128" y2="78" stroke="#CBD5E1" stroke-width="1.5" />
+              <line x1="0" y1="74" x2="118" y2="74" stroke="#CBD5E1" stroke-width="1.5" />
               <g>
-                <rect x="-36" y="64" width="28" height="11" rx="3" fill="#CBD5E1" />
-                <circle cx="-29" cy="76" r="3" fill="#94A3B8" />
-                <circle cx="-14" cy="76" r="3" fill="#94A3B8" />
-                <animateTransform attributeName="transform" type="translate" from="0 0" to="190 0" dur="7.5s" repeatCount="indefinite" />
+                <rect x="-36" y="60" width="28" height="11" rx="3" fill="#CBD5E1" />
+                <circle cx="-29" cy="72" r="3" fill="#94A3B8" />
+                <circle cx="-14" cy="72" r="3" fill="#94A3B8" />
+                <animateTransform attributeName="transform" type="translate" from="0 0" to="180 0" dur="7.5s" repeatCount="indefinite" />
               </g>
             </g>
-            <line x1="64" y1="0" x2="64" y2="96" stroke="${LINE}" stroke-width="1.4" />
-            <line x1="0" y1="48" x2="128" y2="48" stroke="${LINE}" stroke-width="1.4" />
+            <line x1="59" y1="0" x2="59" y2="92" stroke="${LINE}" stroke-width="1.4" />
+            <line x1="0" y1="46" x2="118" y2="46" stroke="${LINE}" stroke-width="1.4" />
           </g>
           <!-- Ticking Wall Clock -->
-          <g transform="translate(465, 118)">
+          <g transform="translate(395, 122)">
             <circle cx="0" cy="0" r="18" fill="${WHITE}" stroke="${LINE}" stroke-width="1.6" />
             <line x1="0" y1="0" x2="0" y2="-10" stroke="#94A3B8" stroke-width="1.6" stroke-linecap="round" />
             <line x1="0" y1="0" x2="8" y2="0" stroke="#64748B" stroke-width="1.6" stroke-linecap="round">
@@ -761,7 +857,7 @@ window.CharacterRig = (function () {
     const ambSVG = renderAmbientBackgroundMotionSVG(locationId);
     switch (locationId) {
       case 'office':
-        return `<rect x="-400" y="-500" width="1800" height="1600" fill="#FFFFFF" /><g opacity="${envOpacity}">${ambSVG}${renderOfficeDeskLaptopSVG(282, 430)}</g>`;
+        return `<rect x="-400" y="-500" width="1800" height="1600" fill="#FFFFFF" /><g opacity="${envOpacity}">${ambSVG}${renderOfficeDeskLaptopSVG(248, 430)}</g>`;
       case 'shop':
         return renderPawnShopEnvironmentSVG(options);
       case 'classroom':
@@ -846,132 +942,12 @@ window.CharacterRig = (function () {
     }
   }
 
-  /**
-   * Episode 01 (ep01-iced-coffee) Anthology Cast Registry
-   */
-  const EP01_CAST = {
-    char_dara: {
-      id: 'char_dara',
-      nameKhmer: 'តារា',
-      nameEn: 'Dara (Office Designer)',
-      style: 'minimal',
-      hair: 'short-spiky',
-      outfit: null,
-      voiceId: 'VOICE-CAST-01'
-    },
-    char_nary: {
-      id: 'char_nary',
-      nameKhmer: 'ណារី',
-      nameEn: 'Dr. Nary (Nutritionist Colleague)',
-      style: 'outfitted',
-      hair: 'top-bun-glasses',
-      outfit: 'teal-health',
-      voiceId: 'VOICE-CAST-02'
-    },
-    char_barista: {
-      id: 'char_barista',
-      nameKhmer: 'បងសុខ',
-      nameEn: 'Bong Sok (Café Barista)',
-      style: 'outfitted',
-      hair: 'curly-clerk',
-      outfit: 'barista-apron',
-      voiceId: 'VOICE-CAST-03'
-    }
-  };
-
-  /**
-   * Hero Prop: Giant 650ml Iced Sweet Coffee Cross-Section X-Ray (Layer 1/2 Prop)
-   * Includes "គិតមើល" Wavy Liquid Meniscus + Curved Dashed Particle Stream (---🍬-->)
-   */
-  function renderIcedCoffeeXrayPropSVG(x = 395, groundY = 430) {
-    const cupTopY = groundY - 210;
-    return `
-      <g class="prop-iced-coffee-xray" transform="translate(${x}, ${cupTopY})">
-        <!-- Curved Dashed Sugar Particle Stream ("គិតមើល" Flying Particle Arc) -->
-        <path d="M 88 -45 C 125 -82, 168 -68, 192 -35" fill="none" stroke="#FA604E" stroke-width="2.5" class="km-dashed-stream" />
-        <g>
-          <rect x="-7" y="-7" width="14" height="14" rx="3" fill="#FFFFFF" stroke="${INK}" stroke-width="2" />
-          <animateMotion dur="1.6s" repeatCount="indefinite" path="M 88 -45 C 125 -82, 168 -68, 192 -35" />
-        </g>
-        <!-- Straw -->
-        <line x1="65" y1="20" x2="88" y2="-48" stroke="#2FAA61" stroke-width="7" stroke-linecap="round" />
-        <!-- Plastic Dome Lid -->
-        <path d="M 0 18 A 65 44 0 0 1 130 18 Z" fill="#F8FAFC" fill-opacity="0.85" stroke="${INK}" stroke-width="3" />
-        <rect x="-6" y="14" width="142" height="10" rx="5" fill="${WHITE}" stroke="${INK}" stroke-width="3" />
-        <!-- Top Espresso & Ice Layer -->
-        <polygon points="2,24 128,24 118,122 12,122" fill="#7C4D2B" stroke="${INK}" stroke-width="3" />
-        <!-- Ice Cubes -->
-        <rect x="22" y="38" width="24" height="20" rx="4" fill="#FFFFFF" fill-opacity="0.75" stroke="${INK}" stroke-width="2" transform="rotate(-8, 34, 48)" />
-        <rect x="64" y="42" width="26" height="20" rx="4" fill="#FFFFFF" fill-opacity="0.75" stroke="${INK}" stroke-width="2" transform="rotate(10, 77, 52)" />
-        <rect x="44" y="68" width="24" height="18" rx="4" fill="#FFFFFF" fill-opacity="0.65" stroke="${INK}" stroke-width="2" />
-        <!-- Bottom Condensed Milk + Sugar Syrup Overload Layer (45g / 11 Teaspoons) with Wavy Top Meniscus -->
-        <path d="M 12 122 Q 38 115 65 122 T 118 122 L 112 208 L 18 208 Z" fill="#FA604E" fill-opacity="0.90" stroke="${INK}" stroke-width="3" />
-        <text x="65" y="147" text-anchor="middle" fill="${WHITE}" font-family="var(--font-khmer)" font-size="10.5" font-weight="700">ទឹកដោះគោខាប់</text>
-        <text x="65" y="171" text-anchor="middle" fill="#FEF08A" font-family="'Inter', var(--font-khmer)" font-size="15" font-weight="800">45g ស្ករ</text>
-        <text x="65" y="193" text-anchor="middle" fill="${WHITE}" font-family="var(--font-khmer)" font-size="10.5" font-weight="700">(11 ស្លាបព្រា)</text>
-      </g>
-    `;
-  }
-
-  function renderCharacterSheetSVG(charConfig = {}) {
-    const daraBase = {
-      style: 'minimal',
-      hair: 'short-spiky',
-      headRadius: 28,
-      torsoLength: 64,
-      limbLength: 70,
-      y: 255
-    };
-
-    return `
-      <rect x="0" y="0" width="960" height="540" fill="#F5F5F3" />
-      <rect x="36" y="54" width="430" height="235" rx="12" fill="#FFFFFF" stroke="#171717" stroke-width="2" />
-      <text x="56" y="82" fill="#171717" font-family="'Inter', sans-serif" font-size="13" font-weight="800">1. EP01 PROTAGONIST "តារា" (FRONT • 3/4 • SIDE)</text>
-      ${renderActorSVG({ ...daraBase, x: 118, angle: 'front', emotion: 'happy', gesture: 'hold-coffee' })}
-      <text x="118" y="276" text-anchor="middle" fill="#64748B" font-size="11" font-weight="700">FRONT (0°)</text>
-
-      ${renderActorSVG({ ...daraBase, x: 252, angle: 'three-quarter', emotion: 'worried', gesture: 'think' })}
-      <text x="252" y="276" text-anchor="middle" fill="#64748B" font-size="11" font-weight="700">3/4 VIEW</text>
-
-      ${renderActorSVG({ ...daraBase, x: 386, angle: 'side', emotion: 'determined', gesture: 'walk' })}
-      <text x="386" y="276" text-anchor="middle" fill="#64748B" font-size="11" font-weight="700">SIDE (90°)</text>
-
-      <rect x="494" y="54" width="430" height="235" rx="12" fill="#FFFFFF" stroke="#171717" stroke-width="2" />
-      <text x="514" y="82" fill="#171717" font-family="'Inter', sans-serif" font-size="13" font-weight="800">2. EP01 CAST & PROP SHEET (ណារី • បងសុខ • COFFEE X-RAY)</text>
-      ${renderActorSVG({ ...daraBase, style: 'outfitted', hair: 'top-bun-glasses', outfit: 'teal-health', x: 575, emotion: 'calm', gesture: 'explain' })}
-      <text x="575" y="276" text-anchor="middle" fill="#2FAA61" font-size="11" font-weight="700">ណារី (VOICE-CAST-02)</text>
-
-      ${renderActorSVG({ ...daraBase, style: 'outfitted', hair: 'curly-clerk', outfit: 'barista-apron', x: 705, emotion: 'happy', gesture: 'open-welcome' })}
-      <text x="705" y="276" text-anchor="middle" fill="#7C4D2B" font-size="11" font-weight="700">បងសុខ (VOICE-CAST-03)</text>
-
-      <g transform="translate(792, 118) scale(0.62)">
-        ${renderIcedCoffeeXrayPropSVG(0, 210)}
-      </g>
-      <text x="835" y="276" text-anchor="middle" fill="#FA604E" font-size="11" font-weight="700">45g SUGAR X-RAY</text>
-
-      <rect x="36" y="306" width="888" height="190" rx="12" fill="#FFFFFF" stroke="#171717" stroke-width="2" />
-      <text x="56" y="334" fill="#171717" font-family="'Inter', sans-serif" font-size="13" font-weight="800">3. CORE EMOTION SAMPLES FOR "តារា" (FROM 15-EMOTION MATRIX)</text>
-      ${['happy', 'tired', 'worried', 'surprised', 'confused', 'thinking', 'proud']
-        .map((emo, i) => {
-          const cx = 105 + i * 124;
-          return `
-            ${renderActorSVG({ ...daraBase, x: cx, y: 472, headRadius: 26, emotion: emo, behindCounter: true })}
-            <text x="${cx}" y="482" text-anchor="middle" fill="#171717" font-family="'Inter', sans-serif" font-size="11" font-weight="700">${emo.toUpperCase()}</text>
-          `;
-        })
-        .join('')}
-    `;
-  }
-
   return {
     EMOTION_PRESETS,
-    EP01_CAST,
     renderActorSVG,
     renderOfficeDeskLaptopSVG,
     renderPawnShopEnvironmentSVG,
     renderPawnCounterForegroundSVG,
-    renderIcedCoffeeXrayPropSVG,
     renderLocationSVG,
-    renderCharacterSheetSVG
   };
 })();

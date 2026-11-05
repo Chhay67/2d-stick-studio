@@ -1,0 +1,212 @@
+.ep02-speaker-dialog-body {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+/* Shot 01: wider TikTok dashboard with text sized for its two gauges. */
+[data-aspect="9:16"][data-topic="ep02-rusty-sitting"] #animCardPrimary {
+  padding: 18px !important;
+}
+
+[data-aspect="9:16"][data-topic="ep02-rusty-sitting"] #animCardPrimary .editable-text-node {
+  font-size: 14px !important;
+  line-height: 1.65 !important;
+}
+
+[data-aspect="9:16"][data-topic="ep02-rusty-sitting"] #animCardPrimary .ep02-concept-heading > .editable-text-node:first-child {
+  font-size: 16px !important;
+}
+
+[data-aspect="9:16"][data-topic="ep02-rusty-sitting"] .ep02-concept-cell {
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+/* Content-led TikTok typography; each topic keeps its own composition. */
+[data-aspect="9:16"] #animCardPrimary {
+  padding: 16px !important;
+  text-align: left;
+}
+
+[data-aspect="9:16"] #animCardPrimary .editable-text-node {
+  line-height: 1.65 !important;
+  overflow-wrap: break-word;
+  font-size: 13px !important;
+}
+
+[data-aspect="9:16"] #animCardPrimary .ep02-concept-heading {
+  gap: 8px !important;
+  flex-wrap: wrap;
+  align-items: center !important;
+  margin-bottom: 12px !important;
+}
+
+[data-aspect="9:16"] #animCardPrimary .ep02-concept-heading > .editable-text-node:first-child {
+  flex: 1 1 240px;
+  min-width: 0;
+  font-size: 15px !important;
+  font-weight: 800 !important;
+}
+
+[data-aspect="9:16"] #animCardPrimary .ep02-concept-grid {
+  gap: 12px !important;
+  align-items: stretch;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+}
+
+[data-aspect="9:16"][data-topic="ep02-heart-wallet-payoff"] #animCardPrimary .ep02-concept-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+}
+
+[data-aspect="9:16"] #animCardPrimary .ep02-concept-cell {
+  min-width: 0;
+  padding: 12px !important;
+}
+
+[data-aspect="9:16"] #animCardPrimary .ep02-concept-cell > .editable-text-node:first-child {
+  margin-bottom: 6px;
+  font-weight: 800 !important;
+}
+
+[data-aspect="9:16"] #animCardPrimary .km-check-row {
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+}
+
+[data-aspect="9:16"] #animCardPrimary .km-check-box {
+  flex-shrink: 0;
+}
+
+/* Camera anchoring owns position; fading must not scale or bounce the text. */
+.ep02-speaker-dialog {
+  transition: opacity 0.2s ease !important;
+  transform: none !important;
+}
+
+.ep02-speaker-portrait {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  background: #F5F5F3;
+  border: 1.5px solid #171717;
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+.ep02-speaker-dialog-text {
+  min-width: 0;
+  font-size: 13px;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+
+.ep02-speaker-dialog[data-speaker-presence="onstage"]::after {
+  content: "";
+  position: absolute;
+  bottom: -8px;
+  left: var(--speaker-tail-x);
+  width: 12px;
+  height: 12px;
+  background: #FFFFFF;
+  border-right: 2.2px solid #171717;
+  border-bottom: 2.2px solid #171717;
+  transform: translateX(-50%) rotate(45deg);
+}
+
+/* Shot 02: reserve independent rows for dialogue, concepts and the park cast. */
+[data-composition="time-rule"] .ep02-speaker-dialog {
+  box-sizing: border-box;
+}
+
+[data-composition="time-rule"] .ep02-speaker-dialog-text {
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+[data-composition="time-rule"] .ep02-time-concept {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+  padding: 12px !important;
+}
+
+[data-composition="time-rule"] .ep02-time-concept > * {
+  min-width: 0;
+  margin-top: 0 !important;
+}
+
+[data-composition="time-rule"] .ep02-age-comparison,
+[data-composition="time-rule"] .ep02-next-hook {
+  grid-column: 1 / -1;
+  padding: 6px 10px !important;
+}
+
+[data-composition="time-rule"] .ep02-age-comparison .editable-text-node {
+  font-size: 12px !important;
+}
+
+[data-composition="time-rule"] .ep02-day-clock {
+  gap: 8px !important;
+  padding: 10px !important;
+}
+
+[data-composition="time-rule"] .ep02-day-clock svg {
+  width: 60px;
+  height: 60px;
+}
+
+[data-composition="time-rule"] .ep02-day-clock .editable-text-node,
+[data-composition="time-rule"] .ep02-week-guideline .editable-text-node {
+  font-size: 12px !important;
+  line-height: 1.65 !important;
+}
+
+[data-composition="time-rule"][data-aspect="9:16"] .ep02-speaker-dialog-text {
+  font-size: 14px;
+}
+
+[data-composition="time-rule"][data-aspect="9:16"] .km-key-tracker {
+  flex-wrap: nowrap;
+  gap: 6px;
+}
+
+[data-composition="time-rule"][data-aspect="9:16"] .km-key-row {
+  flex-shrink: 0;
+  gap: 3px;
+  padding: 3px 6px;
+}
+
+[data-composition="time-rule"][data-aspect="9:16"] .km-key-item {
+  width: 18px;
+  height: 18px;
+  white-space: nowrap;
+  font-size: 9px;
+  line-height: 1;
+}
+
+[data-composition="time-rule"][data-aspect="9:16"] .km-key-pill {
+  white-space: nowrap;
+  font-size: 10px;
+  padding: 3px 8px;
+}
+
+[data-composition="time-rule"][data-aspect="9:16"] .ep02-day-clock {
+  flex-direction: column;
+  align-items: flex-start !important;
+}
+
+[data-composition="time-rule"][data-aspect="9:16"] .ep02-day-clock svg {
+  width: 56px;
+  height: 56px;
+}
+
+[data-composition="time-rule"][data-aspect="9:16"] .ep02-time-concept .editable-text-node {
+  font-size: 14px !important;
+}
+
+[data-aspect="9:16"] #animCardPrimary .ep02-concept-heading > :not(:first-child) {
+  flex: 0 0 auto;
+  max-width: 100%;
+}
