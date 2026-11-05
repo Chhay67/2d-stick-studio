@@ -92,7 +92,7 @@ async function main() {
               children.filter((el) => el.id === 'animCardPrimary' || el.matches('.ep-intro-hook-card, .broll-cutaway-card, .director-outro-card')).forEach((el) => {
                 if (Number(getComputedStyle(el).opacity) < 0.99) return;
                 const r = el.getBoundingClientRect();
-                if (Math.abs((r.left - stage.left) / stage.width - 0.1) > 0.003 || Math.abs(r.width / stage.width - 0.8) > 0.003) issues.push('MARGINS: TikTok info panel must have 10% each side');
+                if (Math.abs((r.left - stage.left) / stage.width - 0.05) > 0.003 || Math.abs(r.width / stage.width - 0.9) > 0.003) issues.push('MARGINS: TikTok info panel must have 5% each side');
               });
             }
             const info = document.getElementById('infographicContainer');
@@ -134,6 +134,23 @@ async function main() {
     await page.click('#btn-aspect-1-1');
     const dimensions = await page.$eval('#stageDimensionsBadge', (el) => el.textContent);
     if (!dimensions.includes('1080')) errors.push('Aspect control did not update dimensions');
+    // Format switches must fit immediately while stopped, not only on the first playback frame.
+    for (const shot of info.shots) {
+      await page.evaluate((index) => window.ScenePlayer.loadShot(index, false), shot.index);
+      await page.click('#btn-aspect-9-16');
+      await page.click('#btn-aspect-1-1');
+      await page.evaluate(() => new Promise((resolve) => setTimeout(resolve, 500)));
+      const clipped = await page.evaluate(() => {
+        const stage = document.getElementById('animationStage').getBoundingClientRect();
+        return [...document.querySelectorAll('#infographicContainer > *')].filter((el) => {
+          if (getComputedStyle(el).display === 'none') return false;
+          const r = el.getBoundingClientRect();
+          return r.width && r.height && (r.left < stage.left - 2 || r.right > stage.right + 2 || r.top < stage.top - 2 || r.bottom > stage.bottom + 2);
+        }).map((el) => el.id || el.className);
+      });
+      clipped.forEach((element) => errors.push('Facebook format-switch overflow: ' + shot.id + ': ' + element));
+    }
+    await page.evaluate(() => window.ScenePlayer.loadShot(0, false));
     fs.mkdirSync(path.join(__dirname, '..', 'exports', 'qa'), { recursive: true });
     await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
     await page.screenshot({ path: path.join(__dirname, '..', 'exports', 'qa', 'studio.png') });

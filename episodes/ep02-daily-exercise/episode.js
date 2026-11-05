@@ -84,9 +84,11 @@ window.EpisodeRegistry.register({
       const top = parseFloat(card.style.top) || 86;
       const enlargedTikTokPanel = aspect === '9:16' && container.dataset.composition === 'time-rule';
       let available = dialogueTop - (enlargedTikTokPanel ? 18 : 32) - top;
+      // Keep Shot 03's approved panel size when raising its cast out of the bottom safe zone.
+      if (aspect === '9:16' && shot.sceneType === 'ep02-brain-mood') available += 70;
       let scale = Math.min(1, (stage.offsetWidth - margin * 2) / card.offsetWidth, available / card.offsetHeight);
       if (aspect === '9:16') {
-        const targetWidth = stage.offsetWidth * 0.8;
+        const targetWidth = stage.offsetWidth * 0.9;
         const secondary = [...container.querySelectorAll('.broll-cutaway-card, .director-outro-card')];
         secondary.forEach((element) => {
           const native = parseFloat(element.dataset.origWidth) || element.offsetWidth;
@@ -96,7 +98,13 @@ window.EpisodeRegistry.register({
         });
         if (secondary.length) available -= Math.max(...secondary.map((element) => element.offsetHeight * Number(element.dataset.aspectScale))) + 16;
         const fitKey = document.fonts.status + ':' + targetWidth;
-        if (card.dataset.widthFitKey !== fitKey || Math.abs(card.offsetWidth * Number(card.dataset.widthFitScale) - targetWidth) > 1) {
+        if (shot.sceneType === 'ep02-habit-outro') card.style.minHeight = '';
+        if (shot.sceneType === 'ep02-habit-outro') {
+          scale = 0.71;
+          card.style.width = (targetWidth / scale) + 'px';
+          card.dataset.widthFitScale = String(scale);
+          card.dataset.widthFitKey = fitKey;
+        } else if (card.dataset.widthFitKey !== fitKey || Math.abs(card.offsetWidth * Number(card.dataset.widthFitScale) - targetWidth) > 1) {
           for (let step = 100; step >= 35; step--) {
             const candidate = step / 100;
             card.style.width = (targetWidth / candidate) + 'px';
@@ -105,21 +113,29 @@ window.EpisodeRegistry.register({
           card.dataset.widthFitScale = String(scale);
           card.dataset.widthFitKey = fitKey;
         } else scale = Number(card.dataset.widthFitScale);
+        if (shot.sceneType === 'ep02-habit-outro') {
+          // Match Shot 07's 281.4-stage-pixel TikTok info panel height.
+          card.style.minHeight = (281.4 / scale) + 'px';
+        }
         secondary.forEach((element) => { element.style.top = (top + card.offsetHeight * scale + 16) + 'px'; });
         container.querySelectorAll('.ep-intro-hook-card, .broll-cutaway-card, .director-outro-card').forEach((element) => {
           const native = parseFloat(element.dataset.origWidth) || element.offsetWidth;
           const fittedScale = Math.min(1, targetWidth / native);
           element.style.width = (targetWidth / fittedScale) + 'px';
-          element.style.left = (stage.offsetWidth * 0.1) + 'px';
+          element.style.left = (stage.offsetWidth * 0.05) + 'px';
           element.dataset.aspectScale = String(fittedScale);
         });
       }
       if (scale > 0) {
         card.dataset.aspectScale = String(scale);
-        card.style.left = (aspect === '9:16' ? stage.offsetWidth * 0.1 : (stage.offsetWidth - card.offsetWidth * scale) / 2) + 'px';
+        card.style.left = (aspect === '9:16' ? stage.offsetWidth * 0.05 : (stage.offsetWidth - card.offsetWidth * scale) / 2) + 'px';
         card.style.transform = 'translateY(0px) scale(' + scale + ')';
       }
     }
+    container.querySelectorAll('#animCardPrimary, .ep-intro-hook-card, .broll-cutaway-card, .director-outro-card').forEach((panel) => {
+      const scale = Number(panel.dataset.aspectScale) || 1;
+      panel.style.setProperty('--ep02-info-radius', (16 / scale) + 'px');
+    });
   },
   getAssetUsage() {
     const usage = {};

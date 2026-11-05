@@ -282,6 +282,7 @@ body {
 /* The 2D Animation Stage Container (Scaled via JS resizeStageToFit) */
 .animation-stage {
   position: relative;
+  flex-shrink: 0;
   width: 960px;
   height: 540px;
   background-color: var(--bg-canvas);

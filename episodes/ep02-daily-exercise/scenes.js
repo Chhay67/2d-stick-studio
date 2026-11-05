@@ -117,7 +117,7 @@ window.EP02_DAILY_EXERCISE = (function () {
       bgmMood: 'story',
       mode: 'HYBRID',
       sceneType: 'ep02-two-percent-rule',
-      formatCamera: { '9:16': { offsetY: 75 }, '1:1': { offsetY: 65 } },
+      formatCamera: { '9:16': { offsetY: 75 }, '1:1': { offsetY: 35 } },
       location: 'park',
       voiceDir: 'episodes/ep02-daily-exercise/audio/voice/shot_02',
       cameraBeats: CAM,
@@ -164,6 +164,7 @@ window.EP02_DAILY_EXERCISE = (function () {
       bgmMood: 'investigation',
       mode: 'HYBRID',
       sceneType: 'ep02-brain-mood',
+      formatCamera: { '9:16': { offsetY: 65 } },
       location: 'whiteboard',
       voiceDir: 'episodes/ep02-daily-exercise/audio/voice/shot_03',
       cameraBeats: CAM,
@@ -456,7 +457,7 @@ VOICE-CAST-03 (Charon) — Pou Samnang: warm, deeper, cheerful older male`
   function renderKeyTracker(activeChapterNum, pillText) {
     const items = [1, 2, 3, 4, 5, 6, 7].map((n) => {
       if (n < activeChapterNum) return `<div class="km-key-item done">✓</div>`;
-      if (n === activeChapterNum) return `<div class="km-key-item active">🏃${n}</div>`;
+      if (n === activeChapterNum) return `<div class="km-key-item active">💡</div>`;
       return `<div class="km-key-item">${n}</div>`;
     });
     return `

@@ -46,6 +46,7 @@ window.ScenePlayer = (function () {
     autoAdvanceEpisode: false,
     shotDuration: 8.0,
     shotStartTime: 0,
+    episodePlaybackSpeed: 1,
     shotElapsed: 0,
     scaleCounterText: '966',
     salaryCounterText: '$300',
@@ -133,10 +134,10 @@ window.ScenePlayer = (function () {
       if (dimBadge) dimBadge.textContent = '1920 × 1080 (16:9 YouTube Master)';
     }
 
-    applyCameraFraming();
-    applyResponsiveInfographicLayout();
-    applyInfographicTimelineState(state.shotPlaying ? state.shotElapsed : 999, state.shotPlaying);
     resizeStageToFit();
+    applyResponsiveInfographicLayout();
+    applyCameraFraming(state.shotElapsed, state.shotPlaying);
+    applyInfographicTimelineState(state.shotPlaying ? state.shotElapsed : 999, state.shotPlaying);
   }
 
   function resizeStageToFit() {
@@ -934,6 +935,8 @@ window.ScenePlayer = (function () {
           state.lineStarted[i] = true;
           try {
             audio.currentTime = Math.max(0, t - ln.start);
+            audio.playbackRate = getPlaybackSpeed();
+            audio.preservesPitch = true;
             connectExternalAudioAnalyser(audio);
             state.externalAudio = audio;
             state.usingExternalAudio = true;
@@ -1510,6 +1513,25 @@ window.ScenePlayer = (function () {
     }
   }
 
+  function getPlaybackSpeed() {
+    return state.autoAdvanceEpisode ? state.episodePlaybackSpeed : 1;
+  }
+
+  function setEpisodePlaybackSpeed(value) {
+    const speed = Number(value);
+    if (![1, 2, 4].includes(speed)) return;
+    const now = performance.now();
+    const elapsed = state.shotPlaying && !(state.usingExternalAudio && !state.lineMode)
+      ? (now - state.shotStartTime) * 0.001 * getPlaybackSpeed()
+      : state.shotElapsed;
+    state.episodePlaybackSpeed = speed;
+    state.shotStartTime = now - elapsed * 1000 / getPlaybackSpeed();
+    const audios = new Set([state.externalAudio, ...(state.lineAudios || [])]);
+    audios.forEach((audio) => {
+      if (audio) { audio.playbackRate = getPlaybackSpeed(); audio.preservesPitch = true; }
+    });
+  }
+
   function toggleFullEpisodePlayback() {
     if (state.inspectedAssetId) {
       loadShot(state.currentShotIndex, false);
@@ -1582,6 +1604,8 @@ window.ScenePlayer = (function () {
         }
       };
       activeAudio.currentTime = 0;
+      activeAudio.playbackRate = getPlaybackSpeed();
+      activeAudio.preservesPitch = true;
       activeAudio.play().catch(() => {});
     }
   }
@@ -1732,7 +1756,7 @@ window.ScenePlayer = (function () {
     const ratio = Math.max(0, Math.min(1, clickX / rect.width));
     const totalDur = Math.max(4.0, state.shotDuration || shot?.defaultDuration || 8.0);
     const targetSeconds = ratio * totalDur;
-    state.shotStartTime = performance.now() - targetSeconds * 1000;
+    state.shotStartTime = performance.now() - targetSeconds * 1000 / getPlaybackSpeed();
     state.shotElapsed = targetSeconds;
 
     if (state.lineMode && shot) {
@@ -1749,7 +1773,7 @@ window.ScenePlayer = (function () {
       });
     }
 
-    if (state.externalAudio && isFinite(state.externalAudio.duration)) {
+    if (!state.lineMode && state.externalAudio && isFinite(state.externalAudio.duration)) {
       state.externalAudio.currentTime = Math.min(state.externalAudio.duration - 0.05, targetSeconds);
     }
     updateShotTimelineEffects(targetSeconds);
@@ -1775,7 +1799,7 @@ window.ScenePlayer = (function () {
           updateShotTimelineEffects(state.shotElapsed);
         }
       } else {
-        state.shotElapsed = (now - state.shotStartTime) * 0.001;
+        state.shotElapsed = (now - state.shotStartTime) * 0.001 * getPlaybackSpeed();
         if (state.lineMode) syncLineAudioToTime(shot, state.shotElapsed, true);
         if (state.shotElapsed >= totalDur) {
           state.shotElapsed = totalDur;
@@ -1988,9 +2012,13 @@ window.ScenePlayer = (function () {
     const totalDur = Math.max(4.0, state.shotDuration || shot.defaultDuration || 8.0);
     const clamped = Math.max(0, Math.min(totalDur - 0.1, targetSeconds));
     state.shotElapsed = clamped;
-    state.shotStartTime = performance.now() - clamped * 1000;
+    state.shotStartTime = performance.now() - clamped * 1000 / getPlaybackSpeed();
 
-    if (state.externalAudio && isFinite(state.externalAudio.duration)) {
+    if (state.lineMode) {
+      stopAllLineAudios();
+      syncLineAudioToTime(shot, clamped, state.shotPlaying);
+    }
+    if (!state.lineMode && state.externalAudio && isFinite(state.externalAudio.duration)) {
       state.externalAudio.currentTime = Math.min(state.externalAudio.duration - 0.05, clamped);
     }
     applyInfographicTimelineState(clamped, true);
@@ -2550,6 +2578,7 @@ window.ScenePlayer = (function () {
 
     const btnPlayEpisodeAll = document.getElementById('btnPlayEpisodeAll');
     if (btnPlayEpisodeAll) btnPlayEpisodeAll.addEventListener('click', toggleFullEpisodePlayback);
+    document.getElementById('episodePlaybackSpeed')?.addEventListener('change', (event) => setEpisodePlaybackSpeed(event.target.value));
 
     const scrubber = document.getElementById('timelineScrubber');
     if (scrubber) scrubber.addEventListener('click', scrubTimeline);
@@ -3087,7 +3116,7 @@ window.ScenePlayer = (function () {
     getPlaybackStatus: () => ({
       shotIndex: state.currentShotIndex, playing: state.shotPlaying,
       pending: state.transitionPending, loading: state.voiceLoading,
-      elapsed: state.shotElapsed, readyAt: state.sceneReadyAt, now: performance.now()
+      elapsed: state.shotElapsed, speed: getPlaybackSpeed(), readyAt: state.sceneReadyAt, now: performance.now()
     }),
     init,
     loadShot,

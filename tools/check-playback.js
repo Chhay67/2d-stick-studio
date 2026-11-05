@@ -45,8 +45,33 @@ async function main() {
     await page.waitForFunction(() => { const s = window.ScenePlayer.getPlaybackStatus(); return s.now > s.readyAt + 100; });
     status = await page.evaluate(() => window.ScenePlayer.getPlaybackStatus());
     assert.equal(status.playing, false, 'cancelled playback restarted');
+    // Speed changes must preserve position and scale the shot clock immediately.
+    await page.evaluate(() => {
+      window.EP02_DAILY_EXERCISE.SHOTS[0].lines.forEach((line) => { line.dur = 10; });
+      window.ScenePlayer.loadShot(0, false);
+    });
+    await page.select('#episodePlaybackSpeed', '2');
+    await page.click('#btnPlayEpisodeAll');
+    await page.waitForFunction(() => window.ScenePlayer.getPlaybackStatus().playing);
+    for (const speed of [2, 4]) {
+      const before = await page.evaluate(() => window.ScenePlayer.getPlaybackStatus());
+      await page.select('#episodePlaybackSpeed', String(speed));
+      const after = await page.evaluate(() => window.ScenePlayer.getPlaybackStatus());
+      assert(Math.abs(after.elapsed - before.elapsed) < 0.5, 'speed change jumped the timeline');
+      const sample = await page.evaluate(() => new Promise((resolve) => {
+        const a = window.ScenePlayer.getPlaybackStatus();
+        setTimeout(() => resolve({ a, b: window.ScenePlayer.getPlaybackStatus() }), 600);
+      }));
+      const measured = (sample.b.elapsed - sample.a.elapsed) * 1000 / (sample.b.now - sample.a.now);
+      assert(Math.abs(measured - speed) < 0.4, `expected ${speed}x clock, got ${measured}`);
+    }
+    await page.click('#btnPlayEpisodeAll');
+    await page.click('#btnPlayShot8s');
+    await page.waitForFunction(() => window.ScenePlayer.getPlaybackStatus().playing);
+    assert.equal(await page.evaluate(() => window.ScenePlayer.getPlaybackStatus().speed), 1, 'single-shot preview inherited episode speed');
+    await page.click('#btnPlayShot8s');
     assert.deepEqual(runtimeErrors, []);
-    console.log('PASS: manual Play, auto-advance and cancellation respect transition completion.');
+    console.log('PASS: transitions, cancellation, 2x/4x clock, live speed changes and single-shot isolation.');
   } finally { if (browser) await browser.close(); server.kill(); }
 }
 main().catch((error) => { console.error(error); process.exitCode = 1; });
